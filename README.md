@@ -73,3 +73,4 @@ git push -u origin main
 
 **الطريقة الثانية (توليد ملف APK مباشر):**
 - يمكنك الذهاب إلى موقع [PWABuilder.com](https://www.pwabuilder.com) ووضع رابط الـ GitHub Pages الخاص بك، ثم الضغط على **Package for Android** لتحميل ملف الـ **.apk** الجاهز للتثبيت!
+

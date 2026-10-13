@@ -1028,3 +1028,214 @@ textarea:focus, input[type="text"]:focus {
   0% { opacity: 0.3; transform: scale(0.9); }
   100% { opacity: 0.8; transform: scale(1.1); }
 }
+
+
+
+/* ==================== DEVICE PILL IN HEADER ==================== */
+.device-header-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 210, 255, 0.08);
+  border: 1px solid rgba(0, 210, 255, 0.25);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  color: var(--neon-blue);
+  margin-top: 2px;
+}
+
+.author-tag {
+  background: rgba(0, 210, 255, 0.12);
+  border: 1px solid var(--neon-blue);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+/* ==================== FLOATING IN-APP NOTIFICATION BANNER ==================== */
+.inapp-notification {
+  position: fixed;
+  top: calc(14px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%) translateY(-140%);
+  width: calc(100% - 32px);
+  max-width: 440px;
+  background: rgba(7, 13, 24, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid var(--neon-blue);
+  box-shadow: 0 0 25px var(--neon-blue-glow), 0 10px 30px rgba(0, 0, 0, 0.8);
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1000;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.inapp-notification.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.notif-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+}
+
+.notif-icon {
+  font-size: 1.4rem;
+  background: rgba(0, 210, 255, 0.15);
+  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  animation: bellRing 1.5s infinite;
+}
+
+.notif-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.notif-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-meta {
+  font-size: 0.75rem;
+  color: var(--neon-blue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-thumb-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  flex-shrink: 0;
+}
+
+.notif-thumb-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes bellRing {
+  0%, 100% { transform: rotate(0); }
+  20%, 60% { transform: rotate(15deg); }
+  40%, 80% { transform: rotate(-15deg); }
+}
+
+/* ==================== DETAILS MODAL STYLING ==================== */
+.detail-device-card {
+  background: rgba(0, 210, 255, 0.08);
+  border: 1px solid rgba(0, 210, 255, 0.25);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #fff;
+}
+
+.detail-device-card strong {
+  color: var(--neon-blue);
+}
+
+.photo-preview-box.large-preview {
+  height: 240px;
+}
+
+.detail-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.detail-status-pill.resolved {
+  background: rgba(0, 230, 118, 0.12);
+  border: 1px solid var(--success-color);
+  color: var(--success-color);
+}
+
+.detail-status-pill.unresolved {
+  background: rgba(255, 51, 102, 0.12);
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+}
+
+.detail-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.detail-status-pill.resolved .detail-status-dot {
+  background: var(--success-color);
+  box-shadow: 0 0 8px var(--success-glow);
+}
+
+.detail-status-pill.unresolved .detail-status-dot {
+  background: var(--danger-color);
+  box-shadow: 0 0 8px var(--danger-glow);
+}
+
+.detail-notes-card {
+  background: #04070d;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+
+.detail-time-row {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.card-device-badge {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  background: rgba(0, 210, 255, 0.08);
+  border: 1px solid rgba(0, 210, 255, 0.2);
+  padding: 2px 7px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

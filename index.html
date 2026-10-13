@@ -23,6 +23,20 @@
 </head>
 <body>
   <div class="app-container">
+
+    <!-- Floating In-App Push Notification Banner -->
+    <div class="inapp-notification" id="inAppNotification">
+      <div class="notif-glow"></div>
+      <div class="notif-icon">🔔</div>
+      <div class="notif-content">
+        <div class="notif-title" id="notifTitle">عملية جديدة مضافة من iPhone!</div>
+        <div class="notif-meta" id="notifMeta">صورة رقم 1 • لم تُحل بعد ❌</div>
+      </div>
+      <div class="notif-thumb-box" id="notifThumbBox" style="display: none;">
+        <img id="notifThumbImg" src="" alt="صورة">
+      </div>
+    </div>
+
     <!-- Top Header -->
     <header class="app-header">
       <div class="header-left">
@@ -39,7 +53,10 @@
 
       <div class="header-title">
         <span class="neon-title">SYSTEM</span>
-        <span class="sub-title">توثيق المشاكل</span>
+        <div class="device-header-pill" id="deviceHeaderPill" title="جهازك الحالي">
+          <span id="currentDeviceIcon">📱</span>
+          <span id="currentDeviceLabel">جاري التعرف...</span>
+        </div>
       </div>
 
       <div class="header-right">
@@ -96,7 +113,7 @@
       <div class="bottom-bar">
         <div class="sync-room-pill" id="roomPill">
           <span class="room-icon">🔗</span>
-          <span id="roomLabel">الغرفة: افتراضية</span>
+          <span id="roomLabel">الغرفة: SYSTEM-MAIN</span>
         </div>
       </div>
     </main>
@@ -111,6 +128,9 @@
         <div class="modal-header">
           <div class="photo-sequence-tag" id="modalPhotoNumber">
             صورة رقم 1
+          </div>
+          <div class="author-tag" id="modalDeviceTag">
+            📱 iPhone
           </div>
           <button class="modal-close-btn" id="closeModalBtn">&times;</button>
         </div>
@@ -201,7 +221,75 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancelReportBtn">إلغاء</button>
           <button type="button" class="btn btn-primary" id="saveReportBtn">
-            <span>💾 حفظ البلاغ</span>
+            <span>💾 حفظ ونشر البلاغ</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== REPORT DETAILS VIEWER MODAL ==================== -->
+    <div class="modal" id="detailModal" role="dialog" aria-hidden="true">
+      <div class="modal-overlay" id="detailModalOverlay"></div>
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="photo-sequence-tag" id="detailPhotoNum">صورة رقم 1</div>
+          <button class="modal-close-btn" id="closeDetailModalBtn">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Device Creator Tag -->
+          <div class="detail-device-card" id="detailDeviceCard">
+            <span class="device-icon">📱</span>
+            <span>أضيفت بواسطة: <strong id="detailDeviceName">iPhone</strong></span>
+          </div>
+
+          <!-- Large Photo Preview -->
+          <div class="photo-preview-box large-preview" id="detailPhotoWrapper">
+            <img id="detailPhotoImg" src="" alt="صورة البلاغ">
+          </div>
+
+          <!-- Problem Status Badge -->
+          <div class="detail-status-pill" id="detailStatusPill">
+            <span class="detail-status-dot" id="detailStatusDot"></span>
+            <span id="detailStatusText">لم تُحل بعد ❌</span>
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">📝</span>
+              تفاصيل وملاحظات المشكلة:
+            </label>
+            <div class="detail-notes-card" id="detailNotesText">
+              لا توجد تفاصيل إضافية
+            </div>
+          </div>
+
+          <!-- Location Info -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">📍</span>
+              الموقع المسجل (GPS):
+            </label>
+            <div class="location-box">
+              <div class="address-text" id="detailAddress">جاري التحميل...</div>
+              <div class="location-actions">
+                <a href="#" target="_blank" id="detailMapLink" class="map-link-btn">
+                  🗺️ فتح في خرائط Google
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-time-row">
+            <span>🕒 وقت التسجيل: <b id="detailTime">اليوم</b></span>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="detailCloseBtn">إغلاق</button>
+          <button type="button" class="btn btn-primary" id="detailToggleStatusBtn">
+            <span>تغيير حالة الحل</span>
           </button>
         </div>
       </div>
@@ -242,28 +330,43 @@
       <div class="modal-overlay" id="syncModalOverlay"></div>
       <div class="modal-card">
         <div class="modal-header">
-          <h2>الربط بين الآيفون والأندرويد</h2>
+          <h2>إعدادات الجهاز والمزامنة</h2>
           <button class="modal-close-btn" id="closeSyncModalBtn">&times;</button>
         </div>
 
         <div class="modal-body">
-          <div class="sync-info-box">
-            <div class="sync-devices-icon">
-              <span>📱 iPhone</span>
-              <span class="sync-arrow">⮂ ☁️ ⮃</span>
-              <span>🤖 Android</span>
+          <!-- Device Name Customization -->
+          <div class="form-group">
+            <label for="deviceNameInput" class="form-label">
+              <span class="label-icon">📱</span>
+              اسم هذا الجهاز (الذي يظهر في البلاغات):
+            </label>
+            <div class="input-with-button">
+              <input type="text" id="deviceNameInput" placeholder="مثال: iPhone أو Android سيف" spellcheck="false">
+              <button id="saveDeviceNameBtn" class="btn btn-secondary">حفظ الاسم</button>
             </div>
-            <p>
-              يمكنك ربط جهاز الآيفون وهاتف الأندرويد معاً بنفس الغرفة السحابية لمشاركة جميع الصور والبلاغات والمواقع في الوقت الفعلي!
-            </p>
+            <small class="helper-text">هذا الاسم سيظهر للطرف الآخر عند إضافة أي صورة أو بلاغ جديد.</small>
           </div>
 
+          <!-- Notification Permission Toggle -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">🔔</span>
+              إشعارات العمليات الجديدة:
+            </label>
+            <button id="enableNotifBtn" class="btn btn-secondary full-width">
+              🔔 تفعيل إشعارات الهاتف عند وصول عمليات جديدة
+            </button>
+          </div>
+
+          <!-- Sync Room Code -->
           <div class="form-group">
             <label for="roomCodeInput" class="form-label">
+              <span class="label-icon">🔗</span>
               رمز غرفة المزامنة المشتركة (Room Code):
             </label>
             <div class="input-with-button">
-              <input type="text" id="roomCodeInput" placeholder="مثال: TEAM-101" dir="ltr" spellcheck="false">
+              <input type="text" id="roomCodeInput" placeholder="مثال: SYSTEM-MAIN" dir="ltr" spellcheck="false">
               <button id="generateRoomBtn" class="btn btn-secondary">توليد عشوائي</button>
             </div>
             <small class="helper-text">اكتب نفس الرمز على كلا الهاتفين (الآيفون والأندرويد) ليتم ربطهما معاً مباشرة.</small>
@@ -273,7 +376,7 @@
             <div class="cloud-status-icon">🌐</div>
             <div class="cloud-status-text">
               <strong>حالة الربط السحابي:</strong>
-              <span id="cloudStatusText">متصل محلياً وسحابياً</span>
+              <span id="cloudStatusText">متصل سحابياً مع الأجهزة الأخرى</span>
             </div>
           </div>
 

@@ -70,3 +70,4 @@ for name, s in sizes.items():
     icon = create_glowing_icon(s)
     icon.save(os.path.join("icons", name), "PNG")
     print(f"Generated {name} ({s}x{s})")
+
