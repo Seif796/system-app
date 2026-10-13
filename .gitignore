@@ -2,4 +2,8 @@
 Thumbs.db
 node_modules/
 *.log
-
+android/
+ios/
+output/
+release_files/
+www/

@@ -1,0 +1,24 @@
+{
+  "name": "system-reporter-app",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "System App for iPhone (IPA) and Android (APK)",
+  "private": true,
+  "scripts": {
+    "prepare-www": "node copy-assets.js",
+    "cap:sync": "npm run prepare-www && cap sync",
+    "cap:add:ios": "cap add ios",
+    "cap:add:android": "cap add android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.1",
+    "@capacitor/camera": "^7.0.1",
+    "@capacitor/geolocation": "^7.0.1",
+    "@capacitor/ios": "^7.0.1",
+    "@capacitor/local-notifications": "^7.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^7.6.9"
+  }
+}

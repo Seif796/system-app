@@ -1,0 +1,190 @@
+name: Build iOS .IPA and Android .APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    name: Build Android .APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          npm install
+
+      - name: Prepare Web Assets
+        run: |
+          npm run prepare-www
+
+      - name: Add Android Platform
+        run: |
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Configure Android Permissions
+        run: |
+          MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_FILE" ]; then
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST_FILE
+          fi
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Prepare Output APK
+        run: |
+          mkdir -p output
+          cp android/app/build/outputs/apk/debug/app-debug.apk output/System-App.apk
+          echo "Android APK successfully created:"
+          ls -lh output/System-App.apk
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-APK
+          path: output/System-App.apk
+          retention-days: 14
+
+  build-ios:
+    name: Build iOS .IPA
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          npm install
+
+      - name: Prepare Web Assets
+        run: |
+          npm run prepare-www
+
+      - name: Add iOS Platform
+        run: |
+          npx cap add ios || true
+          npx cap sync ios
+
+      - name: Configure iOS Permissions
+        run: |
+          PLIST_FILE="ios/App/App/Info.plist"
+          if [ -f "$PLIST_FILE" ]; then
+            plutil -insert NSCameraUsageDescription -string "التطبيق يحتاج الوصول للكاميرا لالتقاط وتوثيق المشاكل" $PLIST_FILE || true
+            plutil -insert NSLocationWhenInUseUsageDescription -string "التطبيق يحتاج تحديد الموقع الجغرافي لتوثيق مكان البلاغ" $PLIST_FILE || true
+            plutil -insert NSLocationAlwaysAndWhenInUseUsageDescription -string "التطبيق يحتاج تحديد الموقع الجغرافي لتوثيق مكان البلاغ" $PLIST_FILE || true
+          fi
+
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install || true
+
+      - name: Build iOS Application (Release)
+        run: |
+          cd ios/App
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            clean build
+
+      - name: Package .IPA & ZIP
+        run: |
+          cd ios/App
+          APP_PATH=$(find build -name "App.app" -type d | head -n 1)
+          echo "Found compiled App.app at: $APP_PATH"
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry System-App.ipa Payload
+          zip -qry System-App-iOS.zip System-App.ipa
+          echo "iOS IPA successfully created:"
+          ls -lh System-App.ipa System-App-iOS.zip
+
+      - name: Upload iOS .IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-IPA
+          path: |
+            ios/App/System-App.ipa
+            ios/App/System-App-iOS.zip
+          retention-days: 14
+
+  release:
+    name: Publish Direct GitHub Release (.IPA & .APK)
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Android-APK
+          path: release_files
+
+      - name: Download iOS Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: iOS-IPA
+          path: release_files
+
+      - name: List Release Files
+        run: |
+          ls -lh release_files
+
+      - name: Publish Direct Release on GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "SYSTEM App - Direct Downloads (iOS .IPA & Android .APK)"
+          body: |
+            ## 📱 روابط تحميل التطبيق المباشرة (Direct Downloads)
+
+            ### 🍏 آيفون (iPhone - iOS):
+            - **تحميل ملف .IPA المباشر:** [System-App.ipa](https://github.com/${{ github.repository }}/releases/download/latest/System-App.ipa)
+            - **تحميل الأرشيف مضغوط (.zip):** [System-App-iOS.zip](https://github.com/${{ github.repository }}/releases/download/latest/System-App-iOS.zip)
+            > 💡 **طريقة التثبيت على الآيفون:** يمكنك تثبيت ملف الـ IPA مباشرة عبر: **TrollStore** أو **AltStore** أو **Scarlet** أو **Sideloadly** أو **Gbox** أو **Esign**.
+
+            ---
+
+            ### 🤖 أندرويد (Android - APK):
+            - **تحميل ملف .APK المباشر:** [System-App.apk](https://github.com/${{ github.repository }}/releases/download/latest/System-App.apk)
+            > 💡 **طريقة التثبيت على الأندرويد:** حمّل ملف الـ APK واضغط عليه للتثبيت المباشر على هاتفك.
+          files: |
+            release_files/System-App.ipa
+            release_files/System-App-iOS.zip
+            release_files/System-App.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
