@@ -6,7 +6,8 @@ const filesToCopy = [
   'styles.css',
   'app.js',
   'manifest.json',
-  'sw.js'
+  'sw.js',
+  'app-icon.png'
 ];
 
 const destDir = path.resolve('www');

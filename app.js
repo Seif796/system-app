@@ -172,16 +172,26 @@ function updateDeviceDisplay() {
 }
 
 // ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', () => {
-  loadReportsFromStorage();
-  checkUrlParams();
-  updateDeviceDisplay();
-  updateUI();
-  setupEventListeners();
-  initServiceWorker();
-  initNetworkListeners();
-  initRealtimeCloud();
-});
+function initApp() {
+  try {
+    loadReportsFromStorage();
+    checkUrlParams();
+    updateDeviceDisplay();
+    updateUI();
+    setupEventListeners();
+    initServiceWorker();
+    initNetworkListeners();
+    initRealtimeCloud();
+  } catch (err) {
+    console.error('App init error:', err);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 // Check if room code was passed via URL (e.g. ?room=ROOM123)
 function checkUrlParams() {
@@ -1127,6 +1137,11 @@ function escapeHtml(text) {
 
 // ==================== SERVICE WORKER ====================
 function initServiceWorker() {
+  // If running inside Capacitor native app or localhost, skip Service Worker
+  if (window.Capacitor || window.location.protocol === 'capacitor:' || window.location.hostname === 'localhost') {
+    console.log('Native mobile app environment, skipping Service Worker');
+    return;
+  }
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js')

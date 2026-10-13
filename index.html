@@ -14,10 +14,17 @@
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="icons/favicon.png">
 
-  <!-- Google Font Cairo -->
+  <!-- Non-blocking font loading so the app NEVER hangs on a blank screen -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+
+  <!-- Early error handler so unhandled errors don't freeze the screen -->
+  <script>
+    window.addEventListener('error', function(e) {
+      console.warn('System app notice:', e.message);
+    });
+  </script>
 
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -52,7 +59,10 @@
       </div>
 
       <div class="header-title">
-        <span class="neon-title">SYSTEM</span>
+        <div class="brand-title-row">
+          <img src="icons/icon-192.png" alt="Logo" class="header-brand-logo">
+          <span class="neon-title">SYSTEM</span>
+        </div>
         <div class="device-header-pill" id="deviceHeaderPill" title="جهازك الحالي">
           <span id="currentDeviceIcon">📱</span>
           <span id="currentDeviceLabel">جاري التعرف...</span>
