@@ -81,6 +81,12 @@
       </div>
     </header>
 
+    <!-- Network Offline / Online Reconnection Banner -->
+    <div class="network-status-bar" id="networkStatusBar">
+      <span class="net-icon" id="netStatusIcon">📶</span>
+      <span class="net-text" id="netStatusText">وضع عدم الاتصال (بدون إنترنت) - سيتم حفظ البلاغات محلياً ورفعها تلقائياً عند الاتصال بالواي فاي</span>
+    </div>
+
     <!-- Main Hero Screen (Black Screen with Glowing Blue Plus Button) -->
     <main class="main-screen" id="mainScreen">
       <!-- Background Cyber Grid / Ambient Light -->
@@ -106,6 +112,12 @@
         <div class="stats-pill" id="statsPill">
           <span>الترقيم القادم: </span>
           <strong id="nextNumberLabel">صورة رقم 1</strong>
+        </div>
+
+        <!-- Offline Pending Queue Pill -->
+        <div class="pending-sync-pill" id="pendingSyncPill" style="display: none;">
+          <span class="pending-icon">⏳</span>
+          <span id="pendingSyncLabel">0 بلاغات محفوظة بانتظار الاتصال</span>
         </div>
       </div>
 

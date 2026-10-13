@@ -2,7 +2,8 @@
  * نظام توثيق المشاكل الذكي (iOS & Android)
  * شاشة سوداء مع زر أزرق نيون مضيء
  * ترقيم تلقائي للصور + سحب اللوكيشن GPS + تحديد حالة المشكلة
- * كشف اسم الجهاز (iPhone / Android) + إشعارات فورية عند إضافة عمليات جديدة + ربط ومزامنة سحابية
+ * كشف اسم الجهاز (iPhone / Android) + إشعارات فورية
+ * العمل الكامل بدون إنترنت (Offline Mode) + مزامنة ورفع تلقائي بمجرد الاتصال بالإنترنت والواي فاي
  */
 
 // ==================== STATE MANAGEMENT ====================
@@ -22,7 +23,8 @@ let state = {
   deviceName: getInitialDeviceName(),
   deferredInstallPrompt: null,
   eventSource: null,
-  currentViewingReportId: null
+  currentViewingReportId: null,
+  isSyncingPending: false
 };
 
 // ==================== DOM ELEMENTS ====================
@@ -33,6 +35,13 @@ const reportCountBadge = document.getElementById('reportCountBadge');
 const roomLabel = document.getElementById('roomLabel');
 const currentDeviceLabel = document.getElementById('currentDeviceLabel');
 const currentDeviceIcon = document.getElementById('currentDeviceIcon');
+
+// Network & Offline Status
+const networkStatusBar = document.getElementById('networkStatusBar');
+const netStatusIcon = document.getElementById('netStatusIcon');
+const netStatusText = document.getElementById('netStatusText');
+const pendingSyncPill = document.getElementById('pendingSyncPill');
+const pendingSyncLabel = document.getElementById('pendingSyncLabel');
 
 // Floating In-App Notification
 const inAppNotification = document.getElementById('inAppNotification');
@@ -170,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateUI();
   setupEventListeners();
   initServiceWorker();
+  initNetworkListeners();
   initRealtimeCloud();
 });
 
@@ -216,7 +226,7 @@ function getNextSequenceNumber() {
   return maxNum + 1;
 }
 
-// Update UI Badges & Next Number Text
+// Update UI Badges & Next Number Text & Pending Sync
 function updateUI() {
   const nextNum = getNextSequenceNumber();
   nextNumberLabel.textContent = `صورة رقم ${nextNum}`;
@@ -230,6 +240,123 @@ function updateUI() {
   countAll.textContent = state.reports.length;
   countResolved.textContent = resolvedCount;
   countUnresolved.textContent = unresolvedCount;
+
+  // Pending Offline Queue Indicator
+  const pendingCount = state.reports.filter(r => r.synced === false).length;
+  if (pendingCount > 0) {
+    pendingSyncPill.style.display = 'flex';
+    pendingSyncLabel.textContent = `${pendingCount} بلاغات محفوظة محلياً (بانتظار الإنترنت)`;
+  } else {
+    pendingSyncPill.style.display = 'none';
+  }
+}
+
+// ==================== OFFLINE & AUTO-SYNC NETWORK SYSTEM ====================
+function initNetworkListeners() {
+  updateNetworkStatus();
+
+  window.addEventListener('online', () => {
+    updateNetworkStatus();
+    syncPendingReports();
+  });
+
+  window.addEventListener('offline', () => {
+    updateNetworkStatus();
+  });
+
+  // Periodic check: sync whenever online if there are pending reports
+  setInterval(() => {
+    if (navigator.onLine && !state.isSyncingPending) {
+      const hasPending = state.reports.some(r => r.synced === false);
+      if (hasPending) {
+        syncPendingReports();
+      }
+    }
+  }, 15000);
+}
+
+function updateNetworkStatus() {
+  const isOnline = navigator.onLine;
+  const pendingCount = state.reports.filter(r => r.synced === false).length;
+
+  if (!isOnline) {
+    networkStatusBar.className = 'network-status-bar offline';
+    networkStatusBar.style.display = 'flex';
+    netStatusIcon.textContent = '📶';
+    netStatusText.textContent = 'وضع عدم الاتصال (بدون إنترنت) - سيتم حفظ البلاغات محلياً ورفعها تلقائياً عند الاتصال بالواي فاي';
+    syncStatusDot.style.backgroundColor = '#ff3366';
+    cloudStatusText.textContent = 'غير متصل (الوضع غير متصل نشط)';
+  } else {
+    if (pendingCount > 0 && !state.isSyncingPending) {
+      networkStatusBar.className = 'network-status-bar syncing';
+      networkStatusBar.style.display = 'flex';
+      netStatusIcon.textContent = '🔄';
+      netStatusText.textContent = `متصل بالإنترنت! جاري رفع ${pendingCount} بلاغ محفوظ...`;
+    } else if (!state.isSyncingPending) {
+      networkStatusBar.style.display = 'none';
+      syncStatusDot.style.backgroundColor = '#00e676';
+      cloudStatusText.textContent = `متصل في الوقت الفعلي (${state.syncRoom})`;
+    }
+  }
+}
+
+// Synchronize all pending offline reports when returning home / connecting to Wi-Fi
+async function syncPendingReports() {
+  if (state.isSyncingPending || !navigator.onLine) return;
+
+  const pending = state.reports.filter(r => r.synced === false);
+  if (pending.length === 0) return;
+
+  state.isSyncingPending = true;
+  networkStatusBar.className = 'network-status-bar syncing';
+  networkStatusBar.style.display = 'flex';
+  netStatusIcon.textContent = '🔄';
+  netStatusText.textContent = `تم الاتصال بالإنترنت! جاري رفع ومزامنة ${pending.length} بلاغ إلى النظام...`;
+
+  let successCount = 0;
+
+  for (const report of pending) {
+    try {
+      // 1. If GPS address was not resolved offline, resolve it now
+      if (report.location && report.location.lat !== 0 && (!report.location.address || report.location.address.includes('سيتم تحديد'))) {
+        try {
+          const resp = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${report.location.lat}&lon=${report.location.lng}&accept-language=ar`,
+            { headers: { 'User-Agent': 'SystemReportApp/1.0' } }
+          );
+          if (resp.ok) {
+            const geoData = await resp.json();
+            if (geoData.display_name) {
+              report.location.address = geoData.display_name;
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 2. Publish to cloud
+      await publishReportToCloudAsync(report);
+      report.synced = true;
+      successCount++;
+    } catch (err) {
+      console.warn('Failed to sync report:', report.id, err);
+    }
+  }
+
+  state.isSyncingPending = false;
+  saveReportsToStorage();
+  updateUI();
+
+  if (successCount > 0) {
+    networkStatusBar.className = 'network-status-bar online-success';
+    netStatusIcon.textContent = '✅';
+    netStatusText.textContent = `تم بنجاح رفع ومزامنة ${successCount} بلاغ إلى النظام!`;
+    playChimeSound();
+    showToast(`🎉 تم الاتصال بالإنترنت ومزامنة ${successCount} بلاغ تلقائياً!`);
+
+    setTimeout(() => {
+      networkStatusBar.style.display = 'none';
+    }, 4500);
+  }
 }
 
 // ==================== AUDIO & NOTIFICATION SYSTEM ====================
@@ -290,7 +417,6 @@ function triggerNewOperationNotification(report) {
 
   inAppNotification.classList.add('show');
 
-  // Clicking in-app banner opens the report details directly!
   inAppNotification.onclick = () => {
     inAppNotification.classList.remove('show');
     openReportDetails(report.id);
@@ -373,7 +499,7 @@ function setupEventListeners() {
   detailToggleStatusBtn.addEventListener('click', () => {
     if (state.currentViewingReportId) {
       toggleReportStatus(state.currentViewingReportId);
-      openReportDetails(state.currentViewingReportId); // refresh view
+      openReportDetails(state.currentViewingReportId);
     }
   });
 
@@ -467,7 +593,7 @@ function setupEventListeners() {
   }
 }
 
-// ==================== PHOTO & GEOLOCATION PROCESSING ====================
+// ==================== PHOTO & GEOLOCATION (OFFLINE READY) ====================
 async function handlePhotoSelection(e) {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
@@ -526,6 +652,7 @@ function compressImage(file, maxWidth, quality) {
   });
 }
 
+// GPS Geolocation - Works 100% Offline via Satellite Hardware
 function fetchCurrentLocation() {
   locationStatus.style.display = 'flex';
   locationDetails.style.display = 'none';
@@ -538,37 +665,40 @@ function fetchCurrentLocation() {
   navigator.geolocation.getCurrentPosition(
     async (position) => {
       const { latitude, longitude, accuracy } = position.coords;
+      const isOnline = navigator.onLine;
+
       state.currentLocation = {
         lat: latitude,
         lng: longitude,
         accuracy: Math.round(accuracy),
-        address: 'جاري تحديد اسم المنطقة...',
+        address: isOnline ? 'جاري تحديد اسم المنطقة...' : `إحداثيات GPS بدقة ±${Math.round(accuracy)}م (سيتم تحديد اسم الشارع عند الاتصال)`,
         mapUrl: `https://www.google.com/maps?q=${latitude},${longitude}`
       };
 
       latVal.textContent = latitude.toFixed(5);
       lngVal.textContent = longitude.toFixed(5);
       mapLinkBtn.href = state.currentLocation.mapUrl;
-      addressVal.textContent = 'جاري البحث عن اسم العنوان...';
+      addressVal.textContent = state.currentLocation.address;
 
       locationStatus.style.display = 'none';
       locationDetails.style.display = 'block';
 
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=ar`,
-          { headers: { 'User-Agent': 'SystemReportApp/1.0' } }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const displayAddress = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          state.currentLocation.address = displayAddress;
-          addressVal.textContent = displayAddress;
-        } else {
-          addressVal.textContent = `إحداثيات GPS بدقة ±${Math.round(accuracy)} متر`;
+      // Reverse geocode if online
+      if (isOnline) {
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=ar`,
+            { headers: { 'User-Agent': 'SystemReportApp/1.0' } }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            const displayAddress = data.display_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+            state.currentLocation.address = displayAddress;
+            addressVal.textContent = displayAddress;
+          }
+        } catch (e) {
+          // Keep satellite coordinates
         }
-      } catch (e) {
-        addressVal.textContent = `إحداثيات GPS بدقة ±${Math.round(accuracy)} متر`;
       }
     },
     (error) => {
@@ -590,7 +720,7 @@ function fetchCurrentLocation() {
   );
 }
 
-// ==================== SAVE REPORT ====================
+// ==================== SAVE REPORT (OFFLINE / ONLINE) ====================
 function saveCurrentReport() {
   if (!state.currentPhotoData) {
     showToast('يرجى التقاط صورة أولاً');
@@ -600,6 +730,7 @@ function saveCurrentReport() {
   const selectedStatus = document.querySelector('input[name="problemStatus"]:checked').value;
   const notes = problemNotes.value.trim();
   const seqNum = getNextSequenceNumber();
+  const isOnline = navigator.onLine;
 
   const newReport = {
     id: 'rep_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
@@ -624,18 +755,24 @@ function saveCurrentReport() {
       hour: '2-digit',
       minute: '2-digit'
     }),
-    room: state.syncRoom
+    room: state.syncRoom,
+    synced: isOnline // true if online and published, false if offline
   };
 
-  // Add to local state
+  // Add to beginning of local reports list
   state.reports.unshift(newReport);
   saveReportsToStorage();
 
-  // Publish in real-time to other devices
-  publishReportToCloud(newReport);
-
   closeReportModal();
-  showToast(`تم حفظ ونشر "صورة رقم ${seqNum}" بواسطة ${state.deviceName}!`);
+
+  if (isOnline) {
+    publishReportToCloud(newReport);
+    showToast(`✅ تم حفظ ونشر "صورة رقم ${seqNum}" بواسطة ${state.deviceName}!`);
+  } else {
+    // Saved Offline!
+    updateUI();
+    showToast(`💾 تم حفظ "صورة رقم ${seqNum}" محلياً (سيتم رفعها تلقائياً عند الاتصال بالإنترنت)`);
+  }
 }
 
 function closeReportModal() {
@@ -652,7 +789,8 @@ window.openReportDetails = function(reportId) {
   state.currentViewingReportId = report.id;
 
   detailPhotoNum.textContent = `صورة رقم ${report.sequenceNumber}`;
-  detailDeviceName.textContent = report.device || 'جهاز غير معروف';
+  const syncLabel = (report.synced === false) ? ' [⏳ محفوظ محلياً]' : ' [☁️ متزامن]';
+  detailDeviceName.textContent = (report.device || 'جهاز غير معروف') + syncLabel;
   detailPhotoImg.src = report.photo;
 
   const isResolved = report.status === 'resolved';
@@ -671,7 +809,6 @@ window.openReportDetails = function(reportId) {
   }
 
   detailTime.textContent = report.displayDate || 'غير محدد';
-
   detailToggleStatusBtn.textContent = isResolved ? 'تغيير الحالة إلى: لم تُحل ❌' : 'تغيير الحالة إلى: تم الحل ✅';
 
   openModal(detailModal);
@@ -703,12 +840,16 @@ function renderReportsList() {
     const statusText = isResolved ? '✅ تم الحل' : '❌ لم تُحل بعد';
     const toggleTargetText = isResolved ? 'تغيير: لم تحل' : 'تغيير: تم الحل';
     const deviceTag = report.device || 'جهاز ذكي';
+    const syncTag = (report.synced === false)
+      ? '<span class="card-sync-tag pending">⏳ بانتظار النت</span>'
+      : '<span class="card-sync-tag synced">☁️ تم الرفع</span>';
 
     card.innerHTML = `
       <div class="card-top">
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
           <span class="card-num-badge">صورة رقم ${report.sequenceNumber}</span>
           <span class="card-device-badge">📱 ${escapeHtml(deviceTag)}</span>
+          ${syncTag}
         </div>
         <span class="card-status-badge ${report.status}">${statusText}</span>
       </div>
@@ -756,7 +897,12 @@ window.toggleReportStatus = function(id) {
     rep.status = rep.status === 'resolved' ? 'unresolved' : 'resolved';
     saveReportsToStorage();
     renderReportsList();
-    publishReportUpdate(rep);
+    if (navigator.onLine) {
+      publishReportUpdate(rep);
+    } else {
+      rep.synced = false;
+      saveReportsToStorage();
+    }
     showToast(`تم تغيير حالة صورة رقم ${rep.sequenceNumber}`);
   }
 };
@@ -779,7 +925,6 @@ function getSyncTopic() {
 
 // Initialize Realtime Listener (SSE via ntfy.sh + BroadcastChannel)
 function initRealtimeCloud() {
-  // 1. BroadcastChannel (Local Network / Tab Sync)
   if (window.BroadcastChannel) {
     try {
       const channel = new BroadcastChannel('bc_' + state.syncRoom);
@@ -789,9 +934,14 @@ function initRealtimeCloud() {
     } catch (e) {}
   }
 
-  // 2. Realtime SSE for cross-device linking (iPhone <-> Android)
   if (state.eventSource) {
     state.eventSource.close();
+  }
+
+  if (!navigator.onLine) {
+    syncStatusDot.style.backgroundColor = '#ff3366';
+    cloudStatusText.textContent = 'غير متصل بالإنترنت (الوضع غير المتصل نشط)';
+    return;
   }
 
   const topic = getSyncTopic();
@@ -810,9 +960,7 @@ function initRealtimeCloud() {
           const parsedData = JSON.parse(payload.message);
           handleIncomingMessage(parsedData);
         }
-      } catch (err) {
-        // Not a JSON payload, ignore heartbeat
-      }
+      } catch (err) {}
     };
 
     state.eventSource.onerror = () => {
@@ -827,21 +975,18 @@ function initRealtimeCloud() {
 // Handle Incoming Message from another device
 function handleIncomingMessage(msg) {
   if (!msg || !msg.type || !msg.report) return;
-
-  // Ignore our own messages
-  if (msg.report.deviceId === state.deviceId) return;
+  if (msg.report.deviceId === state.deviceId) return; // ignore self
 
   if (msg.type === 'NEW_REPORT') {
     const exists = state.reports.some(r => r.id === msg.report.id);
     if (!exists) {
+      msg.report.synced = true;
       state.reports.unshift(msg.report);
       saveReportsToStorage();
       updateUI();
       if (listModal.classList.contains('active')) {
         renderReportsList();
       }
-
-      // TRIGGER NOTIFICATION AS REQUESTED!
       triggerNewOperationNotification(msg.report);
     }
   } else if (msg.type === 'STATUS_UPDATE') {
@@ -856,9 +1001,8 @@ function handleIncomingMessage(msg) {
   }
 }
 
-// Publish New Report to Cloud
-function publishReportToCloud(report) {
-  // BroadcastChannel
+// Publish New Report to Cloud Asynchronously
+function publishReportToCloudAsync(report) {
   if (window.BroadcastChannel) {
     try {
       const channel = new BroadcastChannel('bc_' + state.syncRoom);
@@ -866,20 +1010,30 @@ function publishReportToCloud(report) {
     } catch (e) {}
   }
 
-  // Publish to ntfy cloud topic
   const topic = getSyncTopic();
   const payload = JSON.stringify({ type: 'NEW_REPORT', report });
 
-  fetch(`https://ntfy.sh/${topic}`, {
+  return fetch(`https://ntfy.sh/${topic}`, {
     method: 'POST',
     body: payload,
     headers: {
       'Title': `عملية جديدة مضافة من ${report.device}`,
       'Priority': 'default'
     }
-  }).catch((err) => {
-    console.warn('Cloud publish failed:', err);
   });
+}
+
+function publishReportToCloud(report) {
+  publishReportToCloudAsync(report)
+    .then(() => {
+      report.synced = true;
+      saveReportsToStorage();
+    })
+    .catch((err) => {
+      console.warn('Cloud publish failed (offline):', err);
+      report.synced = false;
+      saveReportsToStorage();
+    });
 }
 
 function publishReportUpdate(report) {
@@ -894,7 +1048,10 @@ function publishReportUpdate(report) {
   fetch(`https://ntfy.sh/${topic}`, {
     method: 'POST',
     body: JSON.stringify({ type: 'STATUS_UPDATE', report })
-  }).catch(() => {});
+  }).catch(() => {
+    report.synced = false;
+    saveReportsToStorage();
+  });
 }
 
 // Backup & Export JSON

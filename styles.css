@@ -1239,3 +1239,84 @@ textarea:focus, input[type="text"]:focus {
   align-items: center;
   gap: 4px;
 }
+
+/* ==================== NETWORK STATUS BAR & OFFLINE QUEUE ==================== */
+.network-status-bar {
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 7px 16px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  z-index: 15;
+  transition: all 0.3s ease;
+}
+
+.network-status-bar.offline {
+  display: flex;
+  background: rgba(220, 38, 38, 0.92);
+  border-bottom: 1px solid rgba(255, 100, 100, 0.4);
+}
+
+.network-status-bar.syncing {
+  display: flex;
+  background: rgba(2, 132, 199, 0.95);
+  border-bottom: 1px solid var(--neon-blue);
+  animation: pulseSyncBar 1.2s infinite alternate;
+}
+
+.network-status-bar.online-success {
+  display: flex;
+  background: rgba(22, 163, 74, 0.95);
+}
+
+@keyframes pulseSyncBar {
+  0% { opacity: 0.85; }
+  100% { opacity: 1; }
+}
+
+.pending-sync-pill {
+  margin-top: 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: pulseGlowAmber 2s infinite alternate ease-in-out;
+}
+
+@keyframes pulseGlowAmber {
+  0% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.2); }
+  100% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.5); }
+}
+
+.card-sync-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.card-sync-tag.pending {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+}
+
+.card-sync-tag.synced {
+  background: rgba(0, 230, 118, 0.1);
+  border: 1px solid rgba(0, 230, 118, 0.25);
+  color: var(--success-color);
+}
