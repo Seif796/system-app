@@ -3,26 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>نظام توثيق المشاكل الذكي</title>
+  <title>SYSTEM - نظام العمليات والتوثيق</title>
 
-  <!-- PWA Meta Tags for iOS & Android -->
+  <!-- Mobile Native Meta Tags -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="نظام البلاغات">
+  <meta name="apple-mobile-web-app-title" content="SYSTEM">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" href="icons/favicon.png">
 
-  <!-- Non-blocking font loading so the app NEVER hangs on a blank screen -->
+  <!-- Non-blocking font loading -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 
-  <!-- Early error handler so unhandled errors don't freeze the screen -->
+  <!-- Early error handler -->
   <script>
     window.addEventListener('error', function(e) {
-      console.warn('System app notice:', e.message);
+      console.warn('System notice:', e.message);
     });
   </script>
 
@@ -44,104 +44,231 @@
       </div>
     </div>
 
-    <!-- Top Header -->
+    <!-- App Header -->
     <header class="app-header">
+      <!-- Left: Live GPS Status -->
       <div class="header-left">
-        <button id="syncModalBtn" class="icon-btn sync-btn" title="الربط بين الأجهزة">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 12v-2a8 8 0 0 1 14.93-4M20 12v2a8 8 0 0 1-14.93 4"></path>
-            <polyline points="20 4 20 10 14 10"></polyline>
-            <polyline points="4 20 4 14 10 14"></polyline>
-          </svg>
-          <span class="sync-status-dot" id="syncStatusDot"></span>
-          <span class="btn-text">مزامنة</span>
-        </button>
+        <div class="live-gps-pill" id="liveGpsPill" title="حالة الـ GPS">
+          <span class="gps-pulse-dot" id="gpsDot"></span>
+          <span class="live-gps-text" id="liveGpsText">جاري سحب اللوكيشن...</span>
+        </div>
       </div>
 
-      <div class="header-title">
+      <!-- Center: SYSTEM Title & Room Info -->
+      <div class="header-center">
         <div class="brand-title-row">
           <img src="icons/icon-192.png" alt="Logo" class="header-brand-logo">
           <span class="neon-title">SYSTEM</span>
         </div>
-        <div class="device-header-pill" id="deviceHeaderPill" title="جهازك الحالي">
-          <span id="currentDeviceIcon">📱</span>
-          <span id="currentDeviceLabel">جاري التعرف...</span>
+        <div class="room-members-pill" id="roomMembersPill" title="معلومات الغرفة والأجهزة المتصلة">
+          <span class="online-dot"></span>
+          <span id="roomCodeDisplay">غرفة: SYSTEM-MAIN</span>
+          <span class="members-separator">•</span>
+          <span id="membersCountText">👥 1 متصل</span>
         </div>
       </div>
 
+      <!-- Right: Settings Button (⚙️) -->
       <div class="header-right">
-        <button id="viewListBtn" class="icon-btn list-btn" title="سجل البلاغات">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-          <span class="badge" id="reportCountBadge">0</span>
-        </button>
-        <button id="installAppBtn" class="icon-btn install-btn" title="تثبيت التطبيق">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
+        <button id="openSettingsBtn" class="icon-btn settings-btn" title="الإعدادات">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </button>
       </div>
     </header>
 
-    <!-- Network Offline / Online Reconnection Banner -->
+    <!-- Network Offline / Online Banner -->
     <div class="network-status-bar" id="networkStatusBar">
       <span class="net-icon" id="netStatusIcon">📶</span>
       <span class="net-text" id="netStatusText">وضع عدم الاتصال (بدون إنترنت) - سيتم حفظ البلاغات محلياً ورفعها تلقائياً عند الاتصال بالواي فاي</span>
     </div>
 
-    <!-- Main Hero Screen (Black Screen with Glowing Blue Plus Button) -->
-    <main class="main-screen" id="mainScreen">
-      <!-- Background Cyber Grid / Ambient Light -->
-      <div class="ambient-glow"></div>
-
-      <!-- Glowing Plus Button Container -->
-      <div class="hero-center">
-        <!-- Pulsing Waves -->
-        <div class="pulse-ring ring-1"></div>
-        <div class="pulse-ring ring-2"></div>
-        <div class="pulse-ring ring-3"></div>
-
-        <!-- The Glowing Blue Plus Button -->
-        <button id="takePhotoBtn" class="neon-plus-btn" aria-label="التقاط صورة وتوثيق المشكلة">
-          <div class="btn-inner-glow"></div>
-          <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-
-        <p class="hero-instruction">اضغط لإلتقاط صورة وتوثيق المشكلة</p>
-        <div class="stats-pill" id="statsPill">
-          <span>الترقيم القادم: </span>
-          <strong id="nextNumberLabel">صورة رقم 1</strong>
+    <!-- MAIN CENTER SCREEN: Live SYSTEM Dashboard & Data -->
+    <main class="system-dashboard" id="mainScreen">
+      <!-- Dashboard Top Filter & Controls -->
+      <div class="dashboard-controls">
+        <div class="dashboard-title-row">
+          <h2>لوحة السيستم والعمليات</h2>
+          <span class="counter-badge" id="reportCountBadge">0 بلاغ</span>
         </div>
 
-        <!-- Offline Pending Queue Pill -->
-        <div class="pending-sync-pill" id="pendingSyncPill" style="display: none;">
-          <span class="pending-icon">⏳</span>
-          <span id="pendingSyncLabel">0 بلاغات محفوظة بانتظار الاتصال</span>
+        <div class="filter-chips-bar">
+          <button class="filter-chip active" data-filter="all">الكل (<span id="countAll">0</span>)</button>
+          <button class="filter-chip" data-filter="unresolved">لم تُحل (<span id="countUnresolved">0</span>)</button>
+          <button class="filter-chip" data-filter="resolved">تم الحل (<span id="countResolved">0</span>)</button>
         </div>
       </div>
 
-      <!-- Quick Summary at bottom -->
-      <div class="bottom-bar">
-        <div class="sync-room-pill" id="roomPill">
-          <span class="room-icon">🔗</span>
-          <span id="roomLabel">الغرفة: SYSTEM-MAIN</span>
+      <!-- Loading State ("ثانية بيحمل...") -->
+      <div class="system-loader" id="systemLoader" style="display: none;">
+        <div class="neon-spinner"></div>
+        <p>ثانية بيحمل بيانات السيستم...</p>
+      </div>
+
+      <!-- Live Reports Feed Container -->
+      <div class="reports-feed" id="reportsContainer">
+        <!-- Dynamic report cards injected via JS -->
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">📷</div>
+          <h3>لا توجد عمليات مسجلة في السيستم حتى الآن</h3>
+          <p>اضغط على الدائرة الزرقاء المضيئة (+) على يمين الشاشة لالتقاط أول صورة وتوثيق المشكلة</p>
         </div>
       </div>
     </main>
 
+    <!-- FLOATING ACTION CIRCLE ON THE RIGHT (السيركل على اليمين) -->
+    <div class="floating-circle-wrapper" id="floatingCircleWrapper">
+      <div class="floating-tag" id="floatingNextTag">صورة رقم 1</div>
+      <button id="takePhotoBtn" class="floating-neon-circle-btn" aria-label="التقاط صورة وتوثيق المشكلة">
+        <div class="circle-pulse-wave"></div>
+        <svg class="plus-icon" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
+
     <!-- Hidden Camera File Input (triggers device camera directly) -->
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+
+    <!-- ==================== ONBOARDING / FIRST LAUNCH WELCOME MODAL ==================== -->
+    <div class="modal" id="welcomeModal" role="dialog" aria-hidden="true">
+      <div class="modal-overlay"></div>
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="brand-row">
+            <img src="icons/icon-192.png" alt="Logo" class="header-brand-logo">
+            <h2>مرحباً بك في SYSTEM</h2>
+          </div>
+        </div>
+
+        <div class="modal-body">
+          <p class="welcome-intro">
+            يرجى ضبط بياناتك أولاً لكي يتعرف عليك أعضاء الغرفة عند إضافة أي صور أو بلاغات:
+          </p>
+
+          <div class="form-group">
+            <label for="welcomeNameInput" class="form-label">
+              <span class="label-icon">👤</span>
+              اكتب اسمك (ليظهر للجميع):
+            </label>
+            <input type="text" id="welcomeNameInput" placeholder="مثال: سيف، م/أحمد، المشرف" spellcheck="false" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">🔑</span>
+              هل لديك Room Code أم تريد كود جديد؟
+            </label>
+
+            <div class="room-choice-grid">
+              <label class="room-choice-card">
+                <input type="radio" name="welcomeRoomType" value="existing" checked>
+                <div class="choice-inner">
+                  <strong>عندي كود غرفة</strong>
+                  <span>انضمام لغرفة زملائك</span>
+                </div>
+              </label>
+
+              <label class="room-choice-card">
+                <input type="radio" name="welcomeRoomType" value="new">
+                <div class="choice-inner">
+                  <strong>إنشاء كود جديد</strong>
+                  <span>توليد كود غرفة جديدة</span>
+                </div>
+              </label>
+            </div>
+
+            <div id="welcomeRoomCodeWrapper" style="margin-top: 10px;">
+              <input type="text" id="welcomeRoomInput" placeholder="اكتب كود الغرفة (مثال: TEAM-101)" dir="ltr" spellcheck="false">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary full-width" id="welcomeSubmitBtn">
+            🚀 دخول النظام والبدء
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SETTINGS MODAL (⚙️) ==================== -->
+    <div class="modal" id="settingsModal" role="dialog" aria-hidden="true">
+      <div class="modal-overlay" id="settingsModalOverlay"></div>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>⚙️ إعدادات النظام والغرفة</h2>
+          <button class="modal-close-btn" id="closeSettingsModalBtn">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Device / User Name -->
+          <div class="form-group">
+            <label for="settingsNameInput" class="form-label">
+              <span class="label-icon">👤</span>
+              اسمك المسجل (الذي يظهر في البلاغات):
+            </label>
+            <div class="input-with-button">
+              <input type="text" id="settingsNameInput" placeholder="اسمك" spellcheck="false">
+              <button id="saveSettingsNameBtn" class="btn btn-secondary">حفظ</button>
+            </div>
+          </div>
+
+          <!-- Room Code -->
+          <div class="form-group">
+            <label for="settingsRoomInput" class="form-label">
+              <span class="label-icon">🔗</span>
+              رمز غرفة المزامنة المشتركة (Room Code):
+            </label>
+            <div class="input-with-button">
+              <input type="text" id="settingsRoomInput" placeholder="مثال: SYSTEM-MAIN" dir="ltr" spellcheck="false">
+              <button id="applySettingsRoomBtn" class="btn btn-secondary">تطبيق</button>
+            </div>
+          </div>
+
+          <!-- Online Connected Devices List -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">👥</span>
+              الأجهزة المتواجدة معك في الغرفة الآن:
+            </label>
+            <div class="connected-members-box" id="connectedMembersBox">
+              <div class="member-tag you">
+                <span class="dot"></span>
+                <span id="myMemberLabel">أنت (سيف)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notification Permission -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">🔔</span>
+              إشعارات العمليات الجديدة:
+            </label>
+            <button id="enableNotifBtn" class="btn btn-secondary full-width">
+              🔔 تفعيل إشعارات الهاتف التنبيهية
+            </button>
+          </div>
+
+          <div class="sync-actions-grid">
+            <button id="forceSyncBtn" class="btn btn-primary full-width">
+              🔄 مزامنة ورفع البيانات فوراً
+            </button>
+            <button id="exportDataBtn" class="btn btn-secondary full-width">
+              📥 تصدير نسخة احتياطية (JSON)
+            </button>
+            <button id="importDataBtn" class="btn btn-secondary full-width">
+              📤 استيراد بيانات من هاتف آخر
+            </button>
+            <input type="file" id="importFileInput" accept=".json" style="display: none;">
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ==================== REPORT CREATION MODAL ==================== -->
     <div class="modal" id="reportModal" role="dialog" aria-hidden="true">
@@ -152,7 +279,7 @@
             صورة رقم 1
           </div>
           <div class="author-tag" id="modalDeviceTag">
-            📱 iPhone
+            📱 سيف
           </div>
           <button class="modal-close-btn" id="closeModalBtn">&times;</button>
         </div>
@@ -210,29 +337,26 @@
             <textarea id="problemNotes" rows="3" placeholder="اكتب تفاصيل أو سبب المشكلة هنا (اختياري)..."></textarea>
           </div>
 
-          <!-- Location Information Box -->
+          <!-- Location Information Box (Already Pre-Locked on Open!) -->
           <div class="form-group">
             <label class="form-label">
               <span class="label-icon">📍</span>
-              الموقع الجغرافي (GPS)
+              الموقع الجغرافي المسجل (GPS):
             </label>
             <div class="location-box" id="locationBox">
-              <div class="location-status" id="locationStatus">
-                <span class="spinner"></span>
-                <span>جاري سحب اللوكيشن تلقائياً...</span>
-              </div>
-              <div class="location-details" id="locationDetails" style="display: none;">
+              <div class="location-details" id="locationDetails">
                 <div class="coords-row">
                   <span class="coord-tag">خط العرض: <b id="latVal">0.000</b></span>
                   <span class="coord-tag">خط الطول: <b id="lngVal">0.000</b></span>
+                  <span class="coord-tag" id="accTag">دقة ±<b id="accVal">5</b>م</span>
                 </div>
-                <div class="address-text" id="addressVal">جاري جلب العنوان...</div>
+                <div class="address-text" id="addressVal">تم تحديد الموقع تلقائياً</div>
                 <div class="location-actions">
                   <a href="#" target="_blank" id="mapLinkBtn" class="map-link-btn">
                     🗺️ فتح في خرائط Google
                   </a>
                   <button type="button" id="refreshLocationBtn" class="refresh-loc-btn">
-                    🔄 تحديث الموقع
+                    🔄 تحديث الموقع الآن
                   </button>
                 </div>
               </div>
@@ -243,7 +367,7 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancelReportBtn">إلغاء</button>
           <button type="button" class="btn btn-primary" id="saveReportBtn">
-            <span>💾 حفظ ونشر البلاغ</span>
+            <span>💾 حفظ ونشر في السيستم</span>
           </button>
         </div>
       </div>
@@ -259,10 +383,13 @@
         </div>
 
         <div class="modal-body">
-          <!-- Device Creator Tag -->
+          <!-- Device Creator Tag & System Sync Status -->
           <div class="detail-device-card" id="detailDeviceCard">
-            <span class="device-icon">📱</span>
-            <span>أضيفت بواسطة: <strong id="detailDeviceName">iPhone</strong></span>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="device-icon">📱</span>
+              <span>أضيفت بواسطة: <strong id="detailDeviceName">سيف</strong></span>
+            </div>
+            <span class="card-sync-tag" id="detailSyncBadge">نزلت في السيستم ✅</span>
           </div>
 
           <!-- Large Photo Preview -->
@@ -313,170 +440,6 @@
           <button type="button" class="btn btn-primary" id="detailToggleStatusBtn">
             <span>تغيير حالة الحل</span>
           </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== REPORTS LIST / HISTORY MODAL ==================== -->
-    <div class="modal" id="listModal" role="dialog" aria-hidden="true">
-      <div class="modal-overlay" id="listModalOverlay"></div>
-      <div class="modal-card wide-card">
-        <div class="modal-header">
-          <div class="title-with-badge">
-            <h2>سجل المشاكل والبلاغات</h2>
-            <span class="counter-badge" id="listCountBadge">0 بلاغ</span>
-          </div>
-          <button class="modal-close-btn" id="closeListModalBtn">&times;</button>
-        </div>
-
-        <!-- Filter bar -->
-        <div class="list-filters">
-          <button class="filter-chip active" data-filter="all">الكل (<span id="countAll">0</span>)</button>
-          <button class="filter-chip" data-filter="unresolved">لم تُحل (<span id="countUnresolved">0</span>)</button>
-          <button class="filter-chip" data-filter="resolved">تم الحل (<span id="countResolved">0</span>)</button>
-        </div>
-
-        <div class="modal-body list-body" id="reportsContainer">
-          <!-- Dynamic cards injected via JS -->
-          <div class="empty-state" id="emptyState">
-            <div class="empty-icon">📷</div>
-            <h3>لا توجد بلاغات مسجلة حتى الآن</h3>
-            <p>اضغط على الدائرة الزرقاء المضيئة (+) في الشاشة الرئيسية لالتقاط أول صورة وتوثيق المشكلة</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== DEVICE SYNC / LINKING MODAL ==================== -->
-    <div class="modal" id="syncModal" role="dialog" aria-hidden="true">
-      <div class="modal-overlay" id="syncModalOverlay"></div>
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2>إعدادات الجهاز والمزامنة</h2>
-          <button class="modal-close-btn" id="closeSyncModalBtn">&times;</button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Device Name Customization -->
-          <div class="form-group">
-            <label for="deviceNameInput" class="form-label">
-              <span class="label-icon">📱</span>
-              اسم هذا الجهاز (الذي يظهر في البلاغات):
-            </label>
-            <div class="input-with-button">
-              <input type="text" id="deviceNameInput" placeholder="مثال: iPhone أو Android سيف" spellcheck="false">
-              <button id="saveDeviceNameBtn" class="btn btn-secondary">حفظ الاسم</button>
-            </div>
-            <small class="helper-text">هذا الاسم سيظهر للطرف الآخر عند إضافة أي صورة أو بلاغ جديد.</small>
-          </div>
-
-          <!-- Notification Permission Toggle -->
-          <div class="form-group">
-            <label class="form-label">
-              <span class="label-icon">🔔</span>
-              إشعارات العمليات الجديدة:
-            </label>
-            <button id="enableNotifBtn" class="btn btn-secondary full-width">
-              🔔 تفعيل إشعارات الهاتف عند وصول عمليات جديدة
-            </button>
-          </div>
-
-          <!-- Sync Room Code -->
-          <div class="form-group">
-            <label for="roomCodeInput" class="form-label">
-              <span class="label-icon">🔗</span>
-              رمز غرفة المزامنة المشتركة (Room Code):
-            </label>
-            <div class="input-with-button">
-              <input type="text" id="roomCodeInput" placeholder="مثال: SYSTEM-MAIN" dir="ltr" spellcheck="false">
-              <button id="generateRoomBtn" class="btn btn-secondary">توليد عشوائي</button>
-            </div>
-            <small class="helper-text">اكتب نفس الرمز على كلا الهاتفين (الآيفون والأندرويد) ليتم ربطهما معاً مباشرة.</small>
-          </div>
-
-          <div class="sync-cloud-status" id="cloudStatusCard">
-            <div class="cloud-status-icon">🌐</div>
-            <div class="cloud-status-text">
-              <strong>حالة الربط السحابي:</strong>
-              <span id="cloudStatusText">متصل سحابياً مع الأجهزة الأخرى</span>
-            </div>
-          </div>
-
-          <div class="sync-actions-grid">
-            <button id="applyRoomBtn" class="btn btn-primary full-width">
-              🔄 تطبيق الرمز والمزامنة الآن
-            </button>
-            <button id="exportDataBtn" class="btn btn-secondary full-width">
-              📥 تصدير نسخة احتياطية (ملف JSON)
-            </button>
-            <button id="importDataBtn" class="btn btn-secondary full-width">
-              📤 استيراد بيانات من هاتف آخر
-            </button>
-            <input type="file" id="importFileInput" accept=".json" style="display: none;">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== INSTALL APP GUIDE MODAL ==================== -->
-    <div class="modal" id="installModal" role="dialog" aria-hidden="true">
-      <div class="modal-overlay" id="installModalOverlay"></div>
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2>تثبيت التطبيق على هاتفك</h2>
-          <button class="modal-close-btn" id="closeInstallModalBtn">&times;</button>
-        </div>
-
-        <div class="modal-body">
-          <div class="install-tabs">
-            <button class="install-tab active" data-tab="ios">🍏 آيفون (iOS)</button>
-            <button class="install-tab" data-tab="android">🤖 أندرويد (Android)</button>
-          </div>
-
-          <div class="install-tab-content active" id="iosGuide">
-            <ol class="guide-steps">
-              <li>
-                افتح رابط التطبيق في متصفح <strong>Safari</strong> على الآيفون.
-              </li>
-              <li>
-                اضغط على زر <strong>المشاركة (Share)</strong>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2" style="vertical-align: middle;">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                  <polyline points="16 6 12 2 8 6"></polyline>
-                  <line x1="12" y1="2" x2="12" y2="15"></line>
-                </svg>
-                في أسفل الشاشة.
-              </li>
-              <li>
-                مرر لأسفل واختر <strong>إضافة إلى الشاشة الرئيسية (Add to Home Screen)</strong>.
-              </li>
-              <li>
-                اضغط <strong>إضافة (Add)</strong> بالأعلى؛ وسيظهر التطبيق على شاشة هاتفك مثل أي تطبيق تم تنزيله من App Store بشاشته السوداء الكاملة وأيقونته الزرقاء!
-              </li>
-            </ol>
-          </div>
-
-          <div class="install-tab-content" id="androidGuide">
-            <div id="androidDirectInstall" style="display: none; margin-bottom: 12px;">
-              <button id="directInstallBtn" class="btn btn-primary full-width">
-                📲 اضغط هنا لتثبيت التطبيق فوراً
-              </button>
-            </div>
-            <ol class="guide-steps">
-              <li>
-                افتح الرابط في متصفح <strong>Google Chrome</strong> على هاتف الأندرويد.
-              </li>
-              <li>
-                اضغط على قائمة الثلاث نقاط <strong>(⋮)</strong> بأعلى المتصفح.
-              </li>
-              <li>
-                اختر <strong>تثبيت التطبيق (Install App)</strong> أو <strong>الإضافة إلى الشاشة الرئيسية</strong>.
-              </li>
-              <li>
-                سيتثبت التطبيق فوراً كبرنامج مستقل (Standalone APK) مع إمكانية العمل بدون إنترنت والتقاط الصور وتحديد المواقع!
-              </li>
-            </ol>
-          </div>
         </div>
       </div>
     </div>
