@@ -1,4 +1,5 @@
 import os
+import json
 import shutil
 from PIL import Image
 
@@ -40,9 +41,10 @@ if os.path.exists(android_res):
         resized.save(os.path.join(folder_path, 'ic_launcher_foreground.png'), 'PNG')
         print(f"Generated Android icons in {folder}")
 
-# 3. Update iOS native icons if ios folder exists
+# 3. Update iOS native icons and CarPlay Car icons if ios folder exists
 ios_appicon = os.path.join('ios', 'App', 'App', 'Assets.xcassets', 'AppIcon.appiconset')
 if os.path.exists(ios_appicon):
+    # Standard iPhone icons
     for f in os.listdir(ios_appicon):
         if f.endswith('.png'):
             target_file = os.path.join(ios_appicon, f)
@@ -52,4 +54,43 @@ if os.path.exists(ios_appicon):
                 img.resize(old_sz, Image.Resampling.LANCZOS).save(target_file, 'PNG')
                 print(f"Replaced iOS icon: {f} ({old_sz[0]}x{old_sz[1]})")
             except Exception as e:
-                print(f"Could not resize for {f}: {e}")
+                pass
+
+    # Specific CarPlay Car Icons (60pt @2x = 120px, 60pt @3x = 180px)
+    car_icons = {
+        'AppIcon-Car-60@2x.png': (120, 120),
+        'AppIcon-Car-60@3x.png': (180, 180)
+    }
+    for name, sz in car_icons.items():
+        car_path = os.path.join(ios_appicon, name)
+        img.resize(sz, Image.Resampling.LANCZOS).save(car_path, 'PNG')
+        print(f"Generated CarPlay Car Icon: {name} ({sz[0]}x{sz[1]})")
+
+    # Update Contents.json with CarPlay entries
+    contents_path = os.path.join(ios_appicon, 'Contents.json')
+    if os.path.exists(contents_path):
+        try:
+            with open(contents_path, 'r', encoding='utf-8') as f:
+                cdata = json.load(f)
+
+            existing_files = {item.get('filename') for item in cdata.get('images', [])}
+            if 'AppIcon-Car-60@2x.png' not in existing_files:
+                cdata['images'].append({
+                    "size": "60x60",
+                    "idiom": "car",
+                    "filename": "AppIcon-Car-60@2x.png",
+                    "scale": "2x"
+                })
+            if 'AppIcon-Car-60@3x.png' not in existing_files:
+                cdata['images'].append({
+                    "size": "60x60",
+                    "idiom": "car",
+                    "filename": "AppIcon-Car-60@3x.png",
+                    "scale": "3x"
+                })
+
+            with open(contents_path, 'w', encoding='utf-8') as f:
+                json.dump(cdata, f, indent=2)
+            print("Updated iOS Contents.json with CarPlay icons.")
+        except Exception as e:
+            print("Error updating Contents.json:", e)

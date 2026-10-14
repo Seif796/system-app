@@ -776,7 +776,8 @@ async function handlePhotoSelection(e) {
   showToast('جاري معالجة الصورة وقفل اللوكيشن...');
 
   try {
-    const compressedBase64 = await compressImage(file, 1200, 0.75);
+    // High speed, lightweight compression (~35KB) for lightning-fast upload
+    const compressedBase64 = await compressImage(file, 800, 0.65);
     state.currentPhotoData = compressedBase64;
     if (photoPreviewImg) photoPreviewImg.src = compressedBase64;
 
@@ -1299,7 +1300,6 @@ function publishReportToCloudAsync(report) {
     method: 'POST',
     body: payload,
     headers: {
-      'Title': `عملية جديدة مضافة من ${report.device}`,
       'Priority': 'default'
     }
   });
