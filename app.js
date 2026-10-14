@@ -9,17 +9,27 @@
 
 // ==================== STATE MANAGEMENT ====================
 const ROOM_KEY = 'system_sync_room_id';
+const EXPLICIT_LEAVE_KEY = 'system_room_explicit_left';
 const DEVICE_NAME_KEY = 'system_device_name_v1';
 const DEVICE_ID_KEY = 'system_device_id_v1';
 const SETUP_DONE_KEY = 'system_setup_done';
 const DEFAULT_ROOM = 'SYSTEM-MAIN';
+
+// Helper: Per-Room Storage Key
+function getRoomDbKey(room) {
+  if (!room || !room.trim()) return null;
+  const clean = room.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
+  return `system_reports_room_${clean}`;
+}
 
 let state = {
   reports: [],
   currentPhotoData: null,
   currentLocation: null,
   activeFilter: 'all',
-  syncRoom: localStorage.getItem(ROOM_KEY) || '', // Room-isolated: empty if left room
+  syncRoom: (localStorage.getItem(EXPLICIT_LEAVE_KEY) === 'true')
+    ? ''
+    : (localStorage.getItem(ROOM_KEY) || DEFAULT_ROOM),
   deviceId: getOrCreateDeviceId(),
   deviceName: getInitialDeviceName(),
   onlineMembers: new Map(), // deviceId -> { name, lastSeen }
@@ -30,13 +40,6 @@ let state = {
   lastGeocodeTime: 0,
   carPlayClockInterval: null
 };
-
-// Helper: Per-Room Storage Key
-function getRoomDbKey(room) {
-  if (!room || !room.trim()) return null;
-  const clean = room.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '_');
-  return `system_reports_room_${clean}`;
-}
 
 // ==================== DOM ELEMENTS ====================
 // Header & Live Indicators
@@ -216,11 +219,6 @@ if (document.readyState === 'loading') {
 }
 
 // ==================== SHORTCUTS & URL SCHEME HANDLER ====================
-/**
- * يدعم تشغيل الاختصارات عبر:
- * systemapp://new  أو  ?action=new  أو  #new
- * systemapp://carplay  أو  ?action=carplay  أو  #carplay
- */
 function checkUrlShortcutsAndParams() {
   const urlParams = new URLSearchParams(window.location.search);
   const hash = window.location.hash;
@@ -229,9 +227,8 @@ function checkUrlShortcutsAndParams() {
   const roomParam = urlParams.get('room');
   if (roomParam && roomParam.trim()) {
     state.syncRoom = roomParam.trim().toUpperCase();
+    localStorage.removeItem(EXPLICIT_LEAVE_KEY);
     localStorage.setItem(ROOM_KEY, state.syncRoom);
-  } else if (!state.syncRoom && localStorage.getItem(ROOM_KEY)) {
-    state.syncRoom = localStorage.getItem(ROOM_KEY);
   }
 
   // 2. Action Shortcuts
@@ -247,7 +244,7 @@ function checkUrlShortcutsAndParams() {
     }, 400);
   }
 
-  // Capacitor custom URL open listener
+  // Capacitor deep link listener
   if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
     try {
       window.Capacitor.Plugins.App.addListener('appUrlOpen', (data) => {
@@ -273,7 +270,7 @@ function handleDeepLink(urlStr) {
 function checkFirstTimeOnboarding() {
   const isSetupDone = localStorage.getItem(SETUP_DONE_KEY) === 'true';
   if (!isSetupDone && !state.syncRoom) {
-    if (state.deviceName) {
+    if (state.deviceName && welcomeNameInput) {
       welcomeNameInput.value = state.deviceName;
     }
     openModal(welcomeModal);
@@ -281,11 +278,6 @@ function checkFirstTimeOnboarding() {
 }
 
 // ==================== PER-ROOM ISOLATED STORAGE ====================
-/**
- * كل غرفة لها قاعدة بيانات وتخزين محلي معزول تماماً
- * إذا خرج من الغرفة تصبح الشاشة فارغة
- * وإذا عاد إليها تظهر جميع بياناتها فوراً
- */
 function loadReportsForCurrentRoom() {
   if (!state.syncRoom) {
     state.reports = [];
@@ -293,7 +285,17 @@ function loadReportsForCurrentRoom() {
   }
   try {
     const key = getRoomDbKey(state.syncRoom);
-    const raw = localStorage.getItem(key);
+    let raw = localStorage.getItem(key);
+
+    // Legacy migration: If new room key is empty, check legacy key
+    if (!raw && state.syncRoom === DEFAULT_ROOM) {
+      const legacy = localStorage.getItem('system_reports_db_v1');
+      if (legacy) {
+        raw = legacy;
+        localStorage.setItem(key, legacy);
+      }
+    }
+
     state.reports = raw ? JSON.parse(raw) : [];
   } catch (err) {
     console.error('Error loading room reports:', err);
@@ -322,11 +324,11 @@ function getNextSequenceNumber() {
 // ==================== CONTINUOUS LIVE GPS TRACKING ====================
 function startLiveLocationTracking() {
   if (!navigator.geolocation) {
-    liveGpsText.textContent = 'GPS غير مدعوم';
+    if (liveGpsText) liveGpsText.textContent = 'GPS غير مدعوم';
     return;
   }
 
-  liveGpsText.textContent = 'جاري البحث عن GPS...';
+  if (liveGpsText) liveGpsText.textContent = 'جاري البحث عن GPS...';
   if (gpsDot) gpsDot.className = 'gps-pulse-dot';
 
   const gpsOptions = {
@@ -353,14 +355,14 @@ function startLiveLocationTracking() {
       mapUrl: `https://www.google.com/maps?q=${latitude},${longitude}`
     };
 
-    liveGpsText.textContent = `📍 GPS نشط (±${accMeters}م)`;
+    if (liveGpsText) liveGpsText.textContent = `📍 GPS نشط (±${accMeters}م)`;
     if (gpsDot) gpsDot.className = 'gps-pulse-dot active';
 
     if (cpGpsText) {
       cpGpsText.innerHTML = `📍 GPS نشط (دقة ±${accMeters}م)`;
     }
 
-    if (reportModal.classList.contains('active')) {
+    if (reportModal && reportModal.classList.contains('active')) {
       updateReportModalLocationUI();
     }
 
@@ -371,10 +373,12 @@ function startLiveLocationTracking() {
   };
 
   const handleGpsError = (err) => {
-    if (err.code === 1) {
-      liveGpsText.textContent = 'تم رفض إذن GPS ⚠️';
-    } else {
-      liveGpsText.textContent = 'جاري تحسين GPS...';
+    if (liveGpsText) {
+      if (err.code === 1) {
+        liveGpsText.textContent = 'تم رفض إذن GPS ⚠️';
+      } else {
+        liveGpsText.textContent = 'جاري تحسين GPS...';
+      }
     }
     if (gpsDot) gpsDot.className = 'gps-pulse-dot';
   };
@@ -397,78 +401,85 @@ async function reverseGeocodeCoordinates(lat, lng) {
       const data = await resp.json();
       const addr = data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       if (state.currentLocation) state.currentLocation.address = addr;
-      if (reportModal.classList.contains('active')) addressVal.textContent = addr;
+      if (reportModal && reportModal.classList.contains('active') && addressVal) {
+        addressVal.textContent = addr;
+      }
     }
   } catch (e) {}
 }
 
 function updateReportModalLocationUI() {
   if (!state.currentLocation || state.currentLocation.lat === 0) {
-    latVal.textContent = '---';
-    lngVal.textContent = '---';
-    accVal.textContent = '--';
-    addressVal.textContent = 'جاري سحب اللوكيشن تلقائياً من GPS...';
-    mapLinkBtn.style.pointerEvents = 'none';
-    mapLinkBtn.style.opacity = '0.5';
+    if (latVal) latVal.textContent = '---';
+    if (lngVal) lngVal.textContent = '---';
+    if (accVal) accVal.textContent = '--';
+    if (addressVal) addressVal.textContent = 'جاري سحب اللوكيشن تلقائياً من GPS...';
+    if (mapLinkBtn) {
+      mapLinkBtn.style.pointerEvents = 'none';
+      mapLinkBtn.style.opacity = '0.5';
+    }
     return;
   }
 
-  latVal.textContent = state.currentLocation.lat.toFixed(5);
-  lngVal.textContent = state.currentLocation.lng.toFixed(5);
-  accVal.textContent = state.currentLocation.accuracy;
-  addressVal.textContent = state.currentLocation.address || 'تم قفل الموقع بدقة GPS';
-  mapLinkBtn.href = state.currentLocation.mapUrl;
-  mapLinkBtn.style.pointerEvents = 'auto';
-  mapLinkBtn.style.opacity = '1';
+  if (latVal) latVal.textContent = state.currentLocation.lat.toFixed(5);
+  if (lngVal) lngVal.textContent = state.currentLocation.lng.toFixed(5);
+  if (accVal) accVal.textContent = state.currentLocation.accuracy;
+  if (addressVal) addressVal.textContent = state.currentLocation.address || 'تم قفل الموقع بدقة GPS';
+  if (mapLinkBtn) {
+    mapLinkBtn.href = state.currentLocation.mapUrl;
+    mapLinkBtn.style.pointerEvents = 'auto';
+    mapLinkBtn.style.opacity = '1';
+  }
 }
 
 // ==================== HEADER & UI UPDATES ====================
 function updateHeaderUI() {
   const nextNum = getNextSequenceNumber();
-  floatingNextTag.textContent = `صورة رقم ${nextNum}`;
+  if (floatingNextTag) floatingNextTag.textContent = `صورة رقم ${nextNum}`;
 
   if (state.syncRoom) {
-    roomCodeDisplay.textContent = `غرفة: ${state.syncRoom}`;
-    leaveRoomBtn.style.display = 'inline-block';
-    reportCountBadge.textContent = `${state.reports.length} بلاغ`;
+    if (roomCodeDisplay) roomCodeDisplay.textContent = `غرفة: ${state.syncRoom}`;
+    if (leaveRoomBtn) leaveRoomBtn.style.display = 'inline-block';
+    if (reportCountBadge) reportCountBadge.textContent = `${state.reports.length} بلاغ`;
   } else {
-    roomCodeDisplay.textContent = 'غير متصل بغرفة';
-    leaveRoomBtn.style.display = 'none';
-    reportCountBadge.textContent = '0 بلاغ';
+    if (roomCodeDisplay) roomCodeDisplay.textContent = 'غير متصل بغرفة';
+    if (leaveRoomBtn) leaveRoomBtn.style.display = 'none';
+    if (reportCountBadge) reportCountBadge.textContent = '0 بلاغ';
   }
 
   const resolvedCount = state.reports.filter(r => r.status === 'resolved').length;
   const unresolvedCount = state.reports.filter(r => r.status === 'unresolved').length;
 
-  countAll.textContent = state.reports.length;
-  countResolved.textContent = resolvedCount;
-  countUnresolved.textContent = unresolvedCount;
+  if (countAll) countAll.textContent = state.reports.length;
+  if (countResolved) countResolved.textContent = resolvedCount;
+  if (countUnresolved) countUnresolved.textContent = unresolvedCount;
 
   updateConnectedMembersCountUI();
 }
 
 function showSystemLoader(durationMs = 600) {
-  systemLoader.style.display = 'flex';
-  reportsContainer.style.opacity = '0.3';
+  if (systemLoader) systemLoader.style.display = 'flex';
+  if (reportsContainer) reportsContainer.style.opacity = '0.3';
   setTimeout(() => {
-    systemLoader.style.display = 'none';
-    reportsContainer.style.opacity = '1';
+    if (systemLoader) systemLoader.style.display = 'none';
+    if (reportsContainer) reportsContainer.style.opacity = '1';
   }, durationMs);
 }
 
 // ==================== CENTER SYSTEM FEED ====================
 function renderReportsFeed() {
+  if (!reportsContainer) return;
   reportsContainer.innerHTML = '';
 
   // 1. If user is NOT in any room (Left room) -> Show Empty Room State
   if (!state.syncRoom) {
-    emptyRoomState.style.display = 'flex';
-    emptyState.style.display = 'none';
-    reportsContainer.appendChild(emptyRoomState);
+    if (emptyRoomState) emptyRoomState.style.display = 'flex';
+    if (emptyState) emptyState.style.display = 'none';
+    if (emptyRoomState) reportsContainer.appendChild(emptyRoomState);
     return;
   }
 
-  emptyRoomState.style.display = 'none';
+  if (emptyRoomState) emptyRoomState.style.display = 'none';
 
   // 2. Filter reports
   const filtered = state.reports.filter(r => {
@@ -478,12 +489,14 @@ function renderReportsFeed() {
   });
 
   if (filtered.length === 0) {
-    emptyState.style.display = 'block';
-    reportsContainer.appendChild(emptyState);
+    if (emptyState) {
+      emptyState.style.display = 'block';
+      reportsContainer.appendChild(emptyState);
+    }
     return;
   }
 
-  emptyState.style.display = 'none';
+  if (emptyState) emptyState.style.display = 'none';
 
   filtered.forEach(report => {
     const card = document.createElement('div');
@@ -545,7 +558,7 @@ function renderReportsFeed() {
   });
 
   // Also update CarPlay feed if active
-  if (carPlayOverlay.style.display === 'flex') {
+  if (carPlayOverlay && carPlayOverlay.style.display === 'flex') {
     renderCarPlayDashboard();
   }
 }
@@ -580,17 +593,13 @@ window.deleteReport = function(id) {
 };
 
 // ==================== ROOM MANAGEMENT (LEAVE & JOIN) ====================
-/**
- * خروج كامل من الغرفة:
- * - تصفير الشاشة تماماً وإخفاء أي بيانات سابقة
- * - فصل البث والاتصال السحابي وتصفير الأجهزة المتصلة
- */
 function leaveCurrentRoom() {
   if (!confirm('هل تريد الخروج من الغرفة الحالية؟ سيتم إخفاء بيانات السيستم حتى تدخل كود الغرفة مرة أخرى.')) {
     return;
   }
 
   state.syncRoom = '';
+  localStorage.setItem(EXPLICIT_LEAVE_KEY, 'true');
   localStorage.removeItem(ROOM_KEY);
   state.reports = [];
   state.onlineMembers.clear();
@@ -612,6 +621,7 @@ function joinRoom(newRoomCode) {
     return;
   }
 
+  localStorage.removeItem(EXPLICIT_LEAVE_KEY);
   state.syncRoom = cleanRoom;
   localStorage.setItem(ROOM_KEY, cleanRoom);
   state.onlineMembers.clear();
@@ -629,6 +639,7 @@ function joinRoom(newRoomCode) {
 
 // ==================== APPLE CARPLAY DASHBOARD ====================
 function openCarPlayMode() {
+  if (!carPlayOverlay) return;
   carPlayOverlay.style.display = 'flex';
   document.body.style.overflow = 'hidden';
 
@@ -641,6 +652,7 @@ function openCarPlayMode() {
 }
 
 function closeCarPlayMode() {
+  if (!carPlayOverlay) return;
   carPlayOverlay.style.display = 'none';
   document.body.style.overflow = '';
   if (state.carPlayClockInterval) {
@@ -657,10 +669,12 @@ function updateCarPlayClock() {
 }
 
 function renderCarPlayDashboard() {
+  if (!carPlayFeed) return;
+
   if (!state.syncRoom) {
-    cpRoomTitle.textContent = 'غير متصل بغرفة';
-    cpReportsText.textContent = '0 بلاغات';
-    cpMembersText.textContent = '👥 0 متصل';
+    if (cpRoomTitle) cpRoomTitle.textContent = 'غير متصل بغرفة';
+    if (cpReportsText) cpReportsText.textContent = '0 بلاغات';
+    if (cpMembersText) cpMembersText.textContent = '👥 0 متصل';
     carPlayFeed.innerHTML = `
       <div style="text-align: center; padding: 40px; color: var(--text-muted);">
         <h3>⚠️ لست منضماً لأي غرفة حالياً</h3>
@@ -670,9 +684,9 @@ function renderCarPlayDashboard() {
     return;
   }
 
-  cpRoomTitle.textContent = `غرفة: ${state.syncRoom}`;
-  cpReportsText.textContent = `📊 ${state.reports.length} بلاغ في السيستم`;
-  cpMembersText.textContent = `👥 ${state.onlineMembers.size + 1} متصل`;
+  if (cpRoomTitle) cpRoomTitle.textContent = `غرفة: ${state.syncRoom}`;
+  if (cpReportsText) cpReportsText.textContent = `📊 ${state.reports.length} بلاغ في السيستم`;
+  if (cpMembersText) cpMembersText.textContent = `👥 ${state.onlineMembers.size + 1} متصل`;
 
   carPlayFeed.innerHTML = '';
 
@@ -697,7 +711,7 @@ function renderCarPlayDashboard() {
         <img src="${report.photo}" class="cp-card-thumb" alt="صورة ${report.sequenceNumber}">
         <div class="cp-card-info">
           <h4>صورة رقم ${report.sequenceNumber} • بواسطة ${escapeHtml(report.device || 'عضو')}</h4>
-          <p>${escapeHtml(report.notes || report.location.address || 'بدون تفاصيل')}</p>
+          <p>${escapeHtml(report.notes || (report.location ? report.location.address : '') || 'بدون تفاصيل')}</p>
         </div>
       </div>
       <div class="cp-card-right">
@@ -709,16 +723,13 @@ function renderCarPlayDashboard() {
   });
 }
 
-/**
- * القراءة الصوتية للبلاغات أثناء القيادة (Text-to-Speech)
- */
 function speakCarPlaySummary() {
   if (!('speechSynthesis' in window)) {
     showToast('النطق الصوتي غير مدعوم في هذا المتصفح');
     return;
   }
 
-  window.speechSynthesis.cancel(); // Stop any ongoing speech
+  window.speechSynthesis.cancel();
 
   if (!state.syncRoom || state.reports.length === 0) {
     const utter = new SpeechSynthesisUtterance('نظام العمليات. لا توجد بلاغات مسجلة حالياً في الغرفة.');
@@ -740,12 +751,12 @@ function speakCarPlaySummary() {
   utterance.lang = 'ar-SA';
   utterance.rate = 0.95;
 
-  cpSpeakSubtext.textContent = '🔊 جاري التحدث الآن...';
+  if (cpSpeakSubtext) cpSpeakSubtext.textContent = '🔊 جاري التحدث الآن...';
   utterance.onend = () => {
-    cpSpeakSubtext.textContent = 'استماع لملخص بلاغات الغرفة';
+    if (cpSpeakSubtext) cpSpeakSubtext.textContent = 'استماع لملخص بلاغات الغرفة';
   };
   utterance.onerror = () => {
-    cpSpeakSubtext.textContent = 'استماع لملخص بلاغات الغرفة';
+    if (cpSpeakSubtext) cpSpeakSubtext.textContent = 'استماع لملخص بلاغات الغرفة';
   };
 
   window.speechSynthesis.speak(utterance);
@@ -767,13 +778,13 @@ async function handlePhotoSelection(e) {
   try {
     const compressedBase64 = await compressImage(file, 1200, 0.75);
     state.currentPhotoData = compressedBase64;
-    photoPreviewImg.src = compressedBase64;
+    if (photoPreviewImg) photoPreviewImg.src = compressedBase64;
 
     const nextNum = getNextSequenceNumber();
-    modalPhotoNumber.textContent = `صورة رقم ${nextNum}`;
-    modalDeviceTag.textContent = `📱 ${state.deviceName}`;
+    if (modalPhotoNumber) modalPhotoNumber.textContent = `صورة رقم ${nextNum}`;
+    if (modalDeviceTag) modalDeviceTag.textContent = `📱 ${state.deviceName}`;
 
-    problemNotes.value = '';
+    if (problemNotes) problemNotes.value = '';
     const unresolvedRadio = document.querySelector('input[name="problemStatus"][value="unresolved"]');
     if (unresolvedRadio) unresolvedRadio.checked = true;
 
@@ -825,7 +836,7 @@ function saveCurrentReport() {
 
   const selectedStatusEl = document.querySelector('input[name="problemStatus"]:checked');
   const selectedStatus = selectedStatusEl ? selectedStatusEl.value : 'unresolved';
-  const notes = problemNotes.value.trim();
+  const notes = problemNotes ? problemNotes.value.trim() : '';
   const seqNum = getNextSequenceNumber();
   const isOnline = navigator.onLine;
 
@@ -881,32 +892,38 @@ window.openReportDetails = function(reportId) {
 
   state.currentViewingReportId = report.id;
 
-  detailPhotoNum.textContent = `صورة رقم ${report.sequenceNumber}`;
-  detailDeviceName.textContent = report.device || 'غير معروف';
+  if (detailPhotoNum) detailPhotoNum.textContent = `صورة رقم ${report.sequenceNumber}`;
+  if (detailDeviceName) detailDeviceName.textContent = report.device || 'غير معروف';
 
   const isUploaded = report.synced !== false;
-  detailSyncBadge.className = isUploaded ? 'card-sync-tag synced' : 'card-sync-tag pending';
-  detailSyncBadge.textContent = isUploaded ? 'نزلت في السيستم ✅' : 'لسه قيد الرفع ⏳';
-
-  detailPhotoImg.src = report.photo;
-
-  const isResolved = report.status === 'resolved';
-  detailStatusPill.className = `detail-status-pill ${report.status}`;
-  detailStatusText.textContent = isResolved ? 'تم الحل ✅' : 'لم تُحل بعد ❌';
-
-  detailNotesText.textContent = report.notes ? report.notes : 'لا توجد ملاحظات إضافية مسجلة.';
-
-  if (report.location && report.location.lat !== 0) {
-    detailAddress.textContent = report.location.address || 'إحداثيات مسجلة';
-    detailMapLink.href = report.location.mapUrl || `https://www.google.com/maps?q=${report.location.lat},${report.location.lng}`;
-    detailMapLink.style.display = 'inline-flex';
-  } else {
-    detailAddress.textContent = 'الموقع غير متوفر';
-    detailMapLink.style.display = 'none';
+  if (detailSyncBadge) {
+    detailSyncBadge.className = isUploaded ? 'card-sync-tag synced' : 'card-sync-tag pending';
+    detailSyncBadge.textContent = isUploaded ? 'نزلت في السيستم ✅' : 'لسه قيد الرفع ⏳';
   }
 
-  detailTime.textContent = report.displayDate || 'الآن';
-  detailToggleStatusBtn.textContent = isResolved ? 'تغيير الحالة إلى: لم تُحل ❌' : 'تغيير الحالة إلى: تم الحل ✅';
+  if (detailPhotoImg) detailPhotoImg.src = report.photo;
+
+  const isResolved = report.status === 'resolved';
+  if (detailStatusPill) detailStatusPill.className = `detail-status-pill ${report.status}`;
+  if (detailStatusText) detailStatusText.textContent = isResolved ? 'تم الحل ✅' : 'لم تُحل بعد ❌';
+
+  if (detailNotesText) detailNotesText.textContent = report.notes ? report.notes : 'لا توجد ملاحظات إضافية مسجلة.';
+
+  if (report.location && report.location.lat !== 0) {
+    if (detailAddress) detailAddress.textContent = report.location.address || 'إحداثيات مسجلة';
+    if (detailMapLink) {
+      detailMapLink.href = report.location.mapUrl || `https://www.google.com/maps?q=${report.location.lat},${report.location.lng}`;
+      detailMapLink.style.display = 'inline-flex';
+    }
+  } else {
+    if (detailAddress) detailAddress.textContent = 'الموقع غير متوفر';
+    if (detailMapLink) detailMapLink.style.display = 'none';
+  }
+
+  if (detailTime) detailTime.textContent = report.displayDate || 'الآن';
+  if (detailToggleStatusBtn) {
+    detailToggleStatusBtn.textContent = isResolved ? 'تغيير الحالة إلى: لم تُحل ❌' : 'تغيير الحالة إلى: تم الحل ✅';
+  }
 
   openModal(detailModal);
 };
@@ -938,17 +955,19 @@ function updateNetworkStatus() {
   const isOnline = navigator.onLine;
   const pendingCount = state.reports.filter(r => r.synced === false).length;
 
+  if (!networkStatusBar) return;
+
   if (!isOnline) {
     networkStatusBar.className = 'network-status-bar offline';
     networkStatusBar.style.display = 'flex';
-    netStatusIcon.textContent = '📶';
-    netStatusText.textContent = 'وضع عدم الاتصال (بدون إنترنت) - يتم حفظ العمليات محلياً ورفعها تلقائياً للسيستم عند الاتصال بالواي فاي';
+    if (netStatusIcon) netStatusIcon.textContent = '📶';
+    if (netStatusText) netStatusText.textContent = 'وضع عدم الاتصال (بدون إنترنت) - يتم حفظ العمليات محلياً ورفعها تلقائياً للسيستم عند الاتصال بالواي فاي';
   } else {
     if (pendingCount > 0 && !state.isSyncingPending) {
       networkStatusBar.className = 'network-status-bar syncing';
       networkStatusBar.style.display = 'flex';
-      netStatusIcon.textContent = '🔄';
-      netStatusText.textContent = `متصل بالإنترنت! جاري رفع ${pendingCount} بلاغ محفوظ إلى السيستم...`;
+      if (netStatusIcon) netStatusIcon.textContent = '🔄';
+      if (netStatusText) netStatusText.textContent = `متصل بالإنترنت! جاري رفع ${pendingCount} بلاغ محفوظ إلى السيستم...`;
     } else if (!state.isSyncingPending) {
       networkStatusBar.style.display = 'none';
     }
@@ -962,10 +981,12 @@ async function syncPendingReports() {
   if (pending.length === 0) return;
 
   state.isSyncingPending = true;
-  networkStatusBar.className = 'network-status-bar syncing';
-  networkStatusBar.style.display = 'flex';
-  netStatusIcon.textContent = '🔄';
-  netStatusText.textContent = `تم الاتصال بالإنترنت! جاري رفع ومزامنة ${pending.length} بلاغ إلى السيستم...`;
+  if (networkStatusBar) {
+    networkStatusBar.className = 'network-status-bar syncing';
+    networkStatusBar.style.display = 'flex';
+    if (netStatusIcon) netStatusIcon.textContent = '🔄';
+    if (netStatusText) netStatusText.textContent = `تم الاتصال بالإنترنت! جاري رفع ومزامنة ${pending.length} بلاغ إلى السيستم...`;
+  }
 
   let successCount = 0;
 
@@ -997,14 +1018,16 @@ async function syncPendingReports() {
   renderReportsFeed();
 
   if (successCount > 0) {
-    networkStatusBar.className = 'network-status-bar online-success';
-    netStatusIcon.textContent = '✅';
-    netStatusText.textContent = `تم بنجاح رفع ومزامنة ${successCount} عملية إلى السيستم!`;
+    if (networkStatusBar) {
+      networkStatusBar.className = 'network-status-bar online-success';
+      if (netStatusIcon) netStatusIcon.textContent = '✅';
+      if (netStatusText) netStatusText.textContent = `تم بنجاح رفع ومزامنة ${successCount} عملية إلى السيستم!`;
+    }
     playChimeSound();
     showToast(`🎉 تم الاتصال بالإنترنت ومزامنة ${successCount} عملية في السيستم!`);
 
     setTimeout(() => {
-      networkStatusBar.style.display = 'none';
+      if (networkStatusBar) networkStatusBar.style.display = 'none';
     }, 4000);
   }
 }
@@ -1064,7 +1087,7 @@ function sendPresencePing() {
 
 function updateConnectedMembersCountUI() {
   const totalConnected = state.syncRoom ? (state.onlineMembers.size + 1) : 0;
-  membersCountText.textContent = `👥 ${totalConnected} متصل`;
+  if (membersCountText) membersCountText.textContent = `👥 ${totalConnected} متصل`;
 
   if (myMemberLabel) {
     myMemberLabel.textContent = `أنت (${state.deviceName})`;
@@ -1132,25 +1155,27 @@ function triggerNewOperationNotification(report) {
   const deviceName = report.device || 'جهاز آخر';
   const statusLabel = report.status === 'resolved' ? 'تم الحل ✅' : 'لم تُحل بعد ❌';
 
-  notifTitle.textContent = `عملية جديدة مضافة من ${deviceName}!`;
-  notifMeta.textContent = `صورة رقم ${report.sequenceNumber} • ${statusLabel}`;
+  if (notifTitle) notifTitle.textContent = `عملية جديدة مضافة من ${deviceName}!`;
+  if (notifMeta) notifMeta.textContent = `صورة رقم ${report.sequenceNumber} • ${statusLabel}`;
 
-  if (report.photo) {
+  if (report.photo && notifThumbImg && notifThumbBox) {
     notifThumbImg.src = report.photo;
     notifThumbBox.style.display = 'block';
-  } else {
+  } else if (notifThumbBox) {
     notifThumbBox.style.display = 'none';
   }
 
-  inAppNotification.classList.add('show');
-  inAppNotification.onclick = () => {
-    inAppNotification.classList.remove('show');
-    openReportDetails(report.id);
-  };
+  if (inAppNotification) {
+    inAppNotification.classList.add('show');
+    inAppNotification.onclick = () => {
+      inAppNotification.classList.remove('show');
+      openReportDetails(report.id);
+    };
 
-  setTimeout(() => {
-    inAppNotification.classList.remove('show');
-  }, 7000);
+    setTimeout(() => {
+      inAppNotification.classList.remove('show');
+    }, 7000);
+  }
 
   if ('Notification' in window && Notification.permission === 'granted') {
     try {
@@ -1233,7 +1258,6 @@ function handleIncomingMessage(msg) {
   if (!msg.report) return;
   if (msg.report.deviceId === state.deviceId) return;
 
-  // Strict room isolation check: only accept if report is for current active room
   if (msg.report.room && state.syncRoom && msg.report.room.toUpperCase() !== state.syncRoom.toUpperCase()) {
     return;
   }
@@ -1317,99 +1341,118 @@ function publishReportUpdate(report) {
   });
 }
 
+// Helper to safely bind event listeners
+function bindEvent(el, event, handler) {
+  if (el) el.addEventListener(event, handler);
+}
+
 // ==================== EVENT LISTENERS ====================
 function setupEventListeners() {
   // 1. Floating Action Circle (Right Side)
-  takePhotoBtn.addEventListener('click', () => {
+  bindEvent(takePhotoBtn, 'click', () => {
     if (!state.syncRoom) {
       showToast('⚠️ يرجى الانضمام إلى غرفة أولاً قبل التصوير');
       openModal(welcomeModal);
       return;
     }
-    cameraInput.value = '';
-    cameraInput.click();
+    if (cameraInput) {
+      cameraInput.value = '';
+      cameraInput.click();
+    }
   });
 
-  cameraInput.addEventListener('change', handlePhotoSelection);
+  bindEvent(cameraInput, 'change', handlePhotoSelection);
 
   // Retake photo
-  retakePhotoBtn.addEventListener('click', () => {
-    cameraInput.value = '';
-    cameraInput.click();
+  bindEvent(retakePhotoBtn, 'click', () => {
+    if (cameraInput) {
+      cameraInput.value = '';
+      cameraInput.click();
+    }
   });
 
   // Save report
-  saveReportBtn.addEventListener('click', saveCurrentReport);
+  bindEvent(saveReportBtn, 'click', saveCurrentReport);
 
   // Close Report Modal
-  cancelReportBtn.addEventListener('click', closeReportModal);
-  closeModalBtn.addEventListener('click', closeReportModal);
-  modalOverlay.addEventListener('click', closeReportModal);
+  bindEvent(cancelReportBtn, 'click', closeReportModal);
+  bindEvent(closeModalBtn, 'click', closeReportModal);
+  bindEvent(modalOverlay, 'click', closeReportModal);
 
   // Refresh GPS Location in Modal
-  refreshLocationBtn.addEventListener('click', () => {
+  bindEvent(refreshLocationBtn, 'click', () => {
     showToast('جاري تحديث إحداثيات GPS...');
     startLiveLocationTracking();
   });
 
   // Leave room buttons (Header & Settings)
-  leaveRoomBtn.addEventListener('click', leaveCurrentRoom);
-  settingsLeaveRoomBtn.addEventListener('click', () => {
+  bindEvent(leaveRoomBtn, 'click', leaveCurrentRoom);
+  bindEvent(settingsLeaveRoomBtn, 'click', () => {
     closeModal(settingsModal);
     leaveCurrentRoom();
   });
 
   // Empty room join button
-  joinOrCreateRoomBtn.addEventListener('click', () => {
+  bindEvent(joinOrCreateRoomBtn, 'click', () => {
     openModal(welcomeModal);
   });
 
   // 2. Filter Chips
-  filterChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      filterChips.forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      state.activeFilter = chip.dataset.filter;
-      renderReportsFeed();
+  if (filterChips) {
+    filterChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        filterChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state.activeFilter = chip.dataset.filter;
+        renderReportsFeed();
+      });
     });
-  });
+  }
 
   // 3. Apple CarPlay Mode Toggles
-  carPlayToggleBtn.addEventListener('click', openCarPlayMode);
-  openCarPlayBtn.addEventListener('click', () => {
+  bindEvent(carPlayToggleBtn, 'click', openCarPlayMode);
+  bindEvent(openCarPlayBtn, 'click', () => {
     closeModal(settingsModal);
     openCarPlayMode();
   });
-  closeCarPlayBtn.addEventListener('click', closeCarPlayMode);
+  bindEvent(closeCarPlayBtn, 'click', closeCarPlayMode);
 
-  cpNewReportBtn.addEventListener('click', () => {
-    takePhotoBtn.click();
+  bindEvent(cpNewReportBtn, 'click', () => {
+    if (takePhotoBtn) takePhotoBtn.click();
   });
-  cpSpeakBtn.addEventListener('click', speakCarPlaySummary);
+  bindEvent(cpSpeakBtn, 'click', speakCarPlaySummary);
 
   // 4. Apple Shortcuts Copy Buttons
-  copyNewShortcutBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText('systemapp://new').then(() => {
-      showToast('📋 تم نسخ رابط الاختصار (systemapp://new)!');
-    }).catch(() => {
+  bindEvent(copyNewShortcutBtn, 'click', () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText('systemapp://new').then(() => {
+        showToast('📋 تم نسخ رابط الاختصار (systemapp://new)!');
+      }).catch(() => {
+        showToast('systemapp://new');
+      });
+    } else {
       showToast('systemapp://new');
-    });
+    }
   });
 
-  copyCarPlayShortcutBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText('systemapp://carplay').then(() => {
-      showToast('📋 تم نسخ رابط الاختصار (systemapp://carplay)!');
-    }).catch(() => {
+  bindEvent(copyCarPlayShortcutBtn, 'click', () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText('systemapp://carplay').then(() => {
+        showToast('📋 تم نسخ رابط الاختصار (systemapp://carplay)!');
+      }).catch(() => {
+        showToast('systemapp://carplay');
+      });
+    } else {
       showToast('systemapp://carplay');
-    });
+    }
   });
 
   // 5. Detail Modal
-  closeDetailModalBtn.addEventListener('click', () => closeModal(detailModal));
-  detailCloseBtn.addEventListener('click', () => closeModal(detailModal));
-  detailModalOverlay.addEventListener('click', () => closeModal(detailModal));
+  bindEvent(closeDetailModalBtn, 'click', () => closeModal(detailModal));
+  bindEvent(detailCloseBtn, 'click', () => closeModal(detailModal));
+  bindEvent(detailModalOverlay, 'click', () => closeModal(detailModal));
 
-  detailToggleStatusBtn.addEventListener('click', () => {
+  bindEvent(detailToggleStatusBtn, 'click', () => {
     if (state.currentViewingReportId) {
       toggleReportStatus(state.currentViewingReportId);
       openReportDetails(state.currentViewingReportId);
@@ -1417,18 +1460,18 @@ function setupEventListeners() {
   });
 
   // 6. Settings Modal (⚙️)
-  openSettingsBtn.addEventListener('click', () => {
-    settingsNameInput.value = state.deviceName;
-    settingsRoomInput.value = state.syncRoom;
+  bindEvent(openSettingsBtn, 'click', () => {
+    if (settingsNameInput) settingsNameInput.value = state.deviceName;
+    if (settingsRoomInput) settingsRoomInput.value = state.syncRoom;
     updateConnectedMembersCountUI();
     openModal(settingsModal);
   });
 
-  closeSettingsModalBtn.addEventListener('click', () => closeModal(settingsModal));
-  settingsModalOverlay.addEventListener('click', () => closeModal(settingsModal));
+  bindEvent(closeSettingsModalBtn, 'click', () => closeModal(settingsModal));
+  bindEvent(settingsModalOverlay, 'click', () => closeModal(settingsModal));
 
-  saveSettingsNameBtn.addEventListener('click', () => {
-    const customName = settingsNameInput.value.trim();
+  bindEvent(saveSettingsNameBtn, 'click', () => {
+    const customName = settingsNameInput ? settingsNameInput.value.trim() : '';
     if (customName) {
       state.deviceName = customName;
       localStorage.setItem(DEVICE_NAME_KEY, customName);
@@ -1438,8 +1481,8 @@ function setupEventListeners() {
     }
   });
 
-  applySettingsRoomBtn.addEventListener('click', () => {
-    const newRoom = settingsRoomInput.value.trim().toUpperCase();
+  bindEvent(applySettingsRoomBtn, 'click', () => {
+    const newRoom = settingsRoomInput ? settingsRoomInput.value.trim().toUpperCase() : '';
     if (newRoom && newRoom !== state.syncRoom) {
       joinRoom(newRoom);
       closeModal(settingsModal);
@@ -1448,7 +1491,7 @@ function setupEventListeners() {
     }
   });
 
-  enableNotifBtn.addEventListener('click', async () => {
+  bindEvent(enableNotifBtn, 'click', async () => {
     if ('Notification' in window) {
       const perm = await Notification.requestPermission();
       if (perm === 'granted') {
@@ -1461,7 +1504,7 @@ function setupEventListeners() {
     }
   });
 
-  forceSyncBtn.addEventListener('click', () => {
+  bindEvent(forceSyncBtn, 'click', () => {
     if (!navigator.onLine) {
       showToast('لا يوجد اتصال بالإنترنت حالياً');
       return;
@@ -1470,35 +1513,42 @@ function setupEventListeners() {
     showToast('جاري التحقق والمزامنة الفورية...');
   });
 
-  exportDataBtn.addEventListener('click', exportReportsAsJson);
-  importDataBtn.addEventListener('click', () => importFileInput.click());
-  importFileInput.addEventListener('change', handleImportFile);
+  bindEvent(exportDataBtn, 'click', exportReportsAsJson);
+  bindEvent(importDataBtn, 'click', () => {
+    if (importFileInput) importFileInput.click();
+  });
+  bindEvent(importFileInput, 'change', handleImportFile);
 
   // 7. Welcome Modal (First-Time Onboarding)
-  welcomeRoomRadios.forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      if (e.target.value === 'new') {
-        welcomeRoomCodeWrapper.style.display = 'none';
-      } else {
-        welcomeRoomCodeWrapper.style.display = 'block';
-        welcomeRoomInput.focus();
-      }
+  if (welcomeRoomRadios) {
+    welcomeRoomRadios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.value === 'new') {
+          if (welcomeRoomCodeWrapper) welcomeRoomCodeWrapper.style.display = 'none';
+        } else {
+          if (welcomeRoomCodeWrapper) {
+            welcomeRoomCodeWrapper.style.display = 'block';
+            if (welcomeRoomInput) welcomeRoomInput.focus();
+          }
+        }
+      });
     });
-  });
+  }
 
-  welcomeSubmitBtn.addEventListener('click', () => {
-    const nameVal = welcomeNameInput.value.trim();
+  bindEvent(welcomeSubmitBtn, 'click', () => {
+    const nameVal = welcomeNameInput ? welcomeNameInput.value.trim() : '';
     if (!nameVal) {
       showToast('يرجى كتابة اسمك أولاً');
-      welcomeNameInput.focus();
+      if (welcomeNameInput) welcomeNameInput.focus();
       return;
     }
 
-    const roomTypeSelected = document.querySelector('input[name="welcomeRoomType"]:checked').value;
+    const roomTypeSelected = document.querySelector('input[name="welcomeRoomType"]:checked');
+    const typeVal = roomTypeSelected ? roomTypeSelected.value : 'existing';
     let roomVal = '';
 
-    if (roomTypeSelected === 'existing') {
-      roomVal = welcomeRoomInput.value.trim().toUpperCase() || DEFAULT_ROOM;
+    if (typeVal === 'existing') {
+      roomVal = (welcomeRoomInput && welcomeRoomInput.value.trim().toUpperCase()) || DEFAULT_ROOM;
     } else {
       roomVal = 'ROOM-' + Math.floor(1000 + Math.random() * 9000);
     }
@@ -1558,18 +1608,21 @@ function handleImportFile(e) {
 
 // ==================== MODAL & UI HELPERS ====================
 function openModal(modalEl) {
+  if (!modalEl) return;
   modalEl.classList.add('active');
   modalEl.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
 }
 
 function closeModal(modalEl) {
+  if (!modalEl) return;
   modalEl.classList.remove('active');
   modalEl.setAttribute('aria-hidden', 'true');
   document.body.style.overflow = '';
 }
 
 function showToast(msg) {
+  if (!toast) return;
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(() => {
