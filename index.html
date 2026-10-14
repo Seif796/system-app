@@ -63,6 +63,7 @@
         <div class="room-members-pill" id="roomMembersPill" title="معلومات الغرفة والأجهزة المتصلة">
           <span class="online-dot"></span>
           <span id="roomCodeDisplay">غرفة: SYSTEM-MAIN</span>
+          <button type="button" id="leaveRoomBtn" class="leave-room-btn" title="خروج من الغرفة الحالية">🚪 خروج</button>
           <span class="members-separator">•</span>
           <span id="membersCountText">👥 1 متصل</span>
         </div>
@@ -70,6 +71,9 @@
 
       <!-- Right: Settings Button (⚙️) -->
       <div class="header-right">
+        <button id="carPlayToggleBtn" class="icon-btn carplay-btn" title="وضع شاشة السيارة Apple CarPlay">
+          <span style="font-size: 1.15rem;">🚗</span>
+        </button>
         <button id="openSettingsBtn" class="icon-btn settings-btn" title="الإعدادات">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"></circle>
@@ -112,8 +116,18 @@
         <!-- Dynamic report cards injected via JS -->
         <div class="empty-state" id="emptyState">
           <div class="empty-icon">📷</div>
-          <h3>لا توجد عمليات مسجلة في السيستم حتى الآن</h3>
+          <h3>لا توجد عمليات مسجلة في هذه الغرفة حتى الآن</h3>
           <p>اضغط على الدائرة الزرقاء المضيئة (+) على يمين الشاشة لالتقاط أول صورة وتوثيق المشكلة</p>
+        </div>
+
+        <!-- State when user leaves room / not in any room -->
+        <div class="empty-room-state" id="emptyRoomState" style="display: none;">
+          <div class="empty-icon">🚪</div>
+          <h3>لقد خرجت من الغرفة</h3>
+          <p>النظام معزول لكل غرفة على حدة ولا يعرض أي بيانات الآن لحماية الخصوصية. انضم أو أنشئ كود غرفة لعرض بلاغاتها فوراً.</p>
+          <button type="button" id="joinOrCreateRoomBtn" class="btn btn-primary" style="margin-top: 14px;">
+            🔗 انضمام أو إنشاء كود غرفة
+          </button>
         </div>
       </div>
     </main>
@@ -227,6 +241,47 @@
               <input type="text" id="settingsRoomInput" placeholder="مثال: SYSTEM-MAIN" dir="ltr" spellcheck="false">
               <button id="applySettingsRoomBtn" class="btn btn-secondary">تطبيق</button>
             </div>
+            <div style="margin-top: 8px;">
+              <button type="button" id="settingsLeaveRoomBtn" class="btn btn-secondary full-width" style="color: #ff3366; border-color: rgba(255, 51, 102, 0.4); font-size: 0.8rem;">
+                🚪 خروج من الغرفة الحالية (تصفير العرض)
+              </button>
+            </div>
+          </div>
+
+          <!-- Apple CarPlay Car Mode -->
+          <div class="form-group">
+            <label class="form-label">
+              <span class="label-icon">🚗</span>
+              شاشة السيارة (Apple CarPlay Mode):
+            </label>
+            <button type="button" id="openCarPlayBtn" class="btn btn-secondary full-width" style="border-color: var(--neon-blue); color: var(--neon-cyan);">
+              🚗 فتح وضع شاشة السيارة CarPlay
+            </button>
+          </div>
+
+          <!-- Apple Shortcuts (Siri) Integration -->
+          <div class="form-group shortcuts-section">
+            <label class="form-label">
+              <span class="label-icon">⚡</span>
+              اختصارات Apple Shortcuts (لإنشاء أيقونات على الشاشة):
+            </label>
+            <div class="shortcut-item-card">
+              <div class="shortcut-info">
+                <strong>📷 التقاط وتوثيق بلاغ جديد فوراً</strong>
+                <code>systemapp://new</code>
+              </div>
+              <button type="button" id="copyNewShortcutBtn" class="btn btn-secondary btn-sm">نسخ الرابط</button>
+            </div>
+            <div class="shortcut-item-card" style="margin-top: 6px;">
+              <div class="shortcut-info">
+                <strong>🚗 تشغيل وضع شاشة السيارة CarPlay</strong>
+                <code>systemapp://carplay</code>
+              </div>
+              <button type="button" id="copyCarPlayShortcutBtn" class="btn btn-secondary btn-sm">نسخ الرابط</button>
+            </div>
+            <p class="shortcuts-hint">
+              💡 <b>طريقة الإضافة في الآيفون:</b> افتح تطبيق <b>Shortcuts (الاختصارات)</b> ⬅️ اضغط <b>(+)</b> ⬅️ اختر أمر <b>Open URLs</b> ⬅️ الصق <code>systemapp://new</code> ⬅️ اضغط <b>Add to Home Screen</b> لتظهر أيقونة مباشرة على شاشة هاتفك تلتقط فوراً!
+            </p>
           </div>
 
           <!-- Online Connected Devices List -->
@@ -441,6 +496,56 @@
             <span>تغيير حالة الحل</span>
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- ==================== APPLE CARPLAY DASHBOARD OVERLAY ==================== -->
+    <div class="carplay-overlay" id="carPlayOverlay" style="display: none;">
+      <div class="carplay-top-bar">
+        <div class="carplay-brand">
+          <span class="cp-logo-pill">🚗 CarPlay</span>
+          <h2 id="cpRoomTitle">غرفة: SYSTEM-MAIN</h2>
+        </div>
+        <div class="carplay-top-right">
+          <span class="carplay-clock" id="cpClock">12:00</span>
+          <button type="button" class="carplay-exit-btn" id="closeCarPlayBtn">✕ خروج من وضع السيارة</button>
+        </div>
+      </div>
+
+      <div class="carplay-stats-strip">
+        <div class="cp-stat-box">
+          <span class="online-dot"></span>
+          <span id="cpMembersText">👥 1 متصل</span>
+        </div>
+        <div class="cp-stat-box">
+          <span id="cpGpsText">📍 GPS نشط</span>
+        </div>
+        <div class="cp-stat-box">
+          <span id="cpReportsText">📊 0 بلاغ في السيستم</span>
+        </div>
+      </div>
+
+      <!-- Large Action Buttons for driving safety -->
+      <div class="carplay-action-buttons">
+        <button type="button" id="cpNewReportBtn" class="cp-big-btn primary">
+          <span class="cp-icon">📷</span>
+          <div class="cp-btn-texts">
+            <strong>توثيق بلاغ جديد (+)</strong>
+            <span>التقاط صورة وربط الموقع فوراً</span>
+          </div>
+        </button>
+        <button type="button" id="cpSpeakBtn" class="cp-big-btn secondary">
+          <span class="cp-icon">🔊</span>
+          <div class="cp-btn-texts">
+            <strong>قراءة صوتية للعمليات</strong>
+            <span id="cpSpeakSubtext">استماع لملخص بلاغات الغرفة</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Large driving cards list -->
+      <div class="carplay-feed" id="carPlayFeed">
+        <!-- Injected via JS -->
       </div>
     </div>
 

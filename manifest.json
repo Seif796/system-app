@@ -1,10 +1,10 @@
 {
-  "name": "نظام البلاغات الذكي",
-  "short_name": "نظام البلاغات",
-  "description": "تطبيق توثيق المشاكل والبلاغات مع تحديد الموقع التلقائي والربط السحابي بين أجهزة الآيفون والأندرويد",
+  "name": "SYSTEM - نظام العمليات الميداني",
+  "short_name": "SYSTEM",
+  "description": "تطبيق توثيق العمليات والمشاكل الميداني مع ربط الغرف اللحظي ووضع Apple CarPlay واختصارات Shortcuts",
   "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#000000",
   "theme_color": "#000000",
   "icons": [
@@ -20,6 +20,21 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "عملية جديدة",
+      "short_name": "جديد 📷",
+      "description": "فتح الكاميرا وتوثيق بلاغ جديد فوراً",
+      "url": "./index.html?action=new",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "شاشة السيارة CarPlay",
+      "short_name": "CarPlay 🚗",
+      "description": "تشغيل وضع شاشة السيارة وعرض السيستم",
+      "url": "./index.html?action=carplay",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
   ]
 }
-

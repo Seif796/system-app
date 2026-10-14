@@ -1216,3 +1216,337 @@ textarea:focus, input[type="text"]:focus {
   20%, 60% { transform: rotate(15deg); }
   40%, 80% { transform: rotate(-15deg); }
 }
+
+/* ==================== LEAVE ROOM & EMPTY ROOM STATE ==================== */
+.leave-room-btn {
+  background: rgba(255, 51, 102, 0.15);
+  border: 1px solid rgba(255, 51, 102, 0.45);
+  color: #ff3366;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 0 4px;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.leave-room-btn:active {
+  background: #ff3366;
+  color: #fff;
+}
+
+.empty-room-state {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-room-state h3 {
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.empty-room-state p {
+  font-size: 0.85rem;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* ==================== SHORTCUTS SECTION IN SETTINGS ==================== */
+.shortcuts-section {
+  background: rgba(0, 210, 255, 0.04);
+  border: 1px solid rgba(0, 210, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.shortcut-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(4, 8, 15, 0.9);
+  border: 1px solid var(--surface-border);
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+.shortcut-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut-info strong {
+  font-size: 0.82rem;
+  color: #fff;
+}
+
+.shortcut-info code {
+  font-size: 0.72rem;
+  color: var(--neon-cyan);
+  font-family: monospace;
+  direction: ltr;
+}
+
+.shortcuts-hint {
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+}
+
+/* ==================== APPLE CARPLAY DASHBOARD OVERLAY ==================== */
+.carplay-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: calc(12px + var(--safe-top)) 18px calc(14px + var(--safe-bottom)) 18px;
+  user-select: none;
+}
+
+.carplay-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--neon-blue);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.carplay-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cp-logo-pill {
+  background: var(--neon-blue);
+  color: #000;
+  font-weight: 900;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+}
+
+.carplay-brand h2 {
+  font-size: 1.15rem;
+  color: #fff;
+  margin: 0;
+}
+
+.carplay-top-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.carplay-clock {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--neon-cyan);
+  font-family: monospace;
+}
+
+.carplay-exit-btn {
+  background: rgba(255, 51, 102, 0.2);
+  border: 1px solid var(--danger-color);
+  color: #ff3366;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.carplay-exit-btn:active {
+  background: var(--danger-color);
+  color: #fff;
+}
+
+.carplay-stats-strip {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.cp-stat-box {
+  background: rgba(11, 20, 36, 0.8);
+  border: 1px solid var(--surface-border);
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.carplay-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cp-big-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 2px solid;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s;
+}
+
+.cp-big-btn:active {
+  transform: scale(0.97);
+}
+
+.cp-big-btn.primary {
+  background: radial-gradient(circle at 30% 30%, #034b75 0%, #011d33 100%);
+  border-color: var(--neon-blue);
+  box-shadow: 0 0 15px var(--neon-blue-glow);
+  color: #fff;
+}
+
+.cp-big-btn.secondary {
+  background: rgba(14, 25, 45, 0.9);
+  border-color: var(--surface-border);
+  color: #fff;
+}
+
+.cp-big-btn.secondary:active {
+  border-color: var(--neon-cyan);
+}
+
+.cp-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.cp-btn-texts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: right;
+}
+
+.cp-btn-texts strong {
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.cp-btn-texts span {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.carplay-feed {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cp-card {
+  background: #090e18;
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cp-card.resolved {
+  border-right: 5px solid var(--success-color);
+}
+
+.cp-card.unresolved {
+  border-right: 5px solid var(--danger-color);
+}
+
+.cp-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cp-card-thumb {
+  width: 55px;
+  height: 55px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--surface-border);
+  background: #000;
+}
+
+.cp-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cp-card-info h4 {
+  font-size: 0.95rem;
+  color: #fff;
+  margin: 0;
+}
+
+.cp-card-info p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.cp-badge-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.cp-badge-status.resolved {
+  background: rgba(0, 230, 118, 0.15);
+  color: var(--success-color);
+}
+
+.cp-badge-status.unresolved {
+  background: rgba(255, 51, 102, 0.15);
+  color: var(--danger-color);
+}

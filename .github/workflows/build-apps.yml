@@ -53,8 +53,9 @@ jobs:
           python generate_native_icons.py
           npx cap sync android
 
-      - name: Configure Android Permissions
+      - name: Configure Android Permissions and Shortcuts Scheme
         run: |
+          python configure_native_platforms.py
           MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_FILE" ]; then
             sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST_FILE
@@ -118,14 +119,9 @@ jobs:
           python3 generate_native_icons.py
           npx cap sync ios
 
-      - name: Configure iOS Permissions
+      - name: Configure iOS Permissions, CarPlay and Shortcuts
         run: |
-          PLIST_FILE="ios/App/App/Info.plist"
-          if [ -f "$PLIST_FILE" ]; then
-            plutil -insert NSCameraUsageDescription -string "التطبيق يحتاج الوصول للكاميرا لالتقاط وتوثيق المشاكل" $PLIST_FILE || true
-            plutil -insert NSLocationWhenInUseUsageDescription -string "التطبيق يحتاج تحديد الموقع الجغرافي لتوثيق مكان البلاغ" $PLIST_FILE || true
-            plutil -insert NSLocationAlwaysAndWhenInUseUsageDescription -string "التطبيق يحتاج تحديد الموقع الجغرافي لتوثيق مكان البلاغ" $PLIST_FILE || true
-          fi
+          python3 configure_native_platforms.py
 
       - name: Install CocoaPods
         run: |

@@ -11,7 +11,8 @@
     "contentInset": "automatic",
     "allowsLinkPreview": false,
     "scrollEnabled": true,
-    "preferredContentMode": "mobile"
+    "preferredContentMode": "mobile",
+    "scheme": "systemapp"
   },
   "android": {
     "allowMixedContent": true
