@@ -168,6 +168,16 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
         }
     }
 
+    # UIBackgroundModes for CarPlay Audio, Navigation and Background Operations
+    plist_data['UIBackgroundModes'] = ['audio', 'location', 'fetch', 'remote-notification']
+
+    # Siri and CarPlay Intents
+    plist_data['INIntentsSupported'] = [
+        'INSendMessageIntent',
+        'INSearchForMessagesIntent',
+        'INPlayMediaIntent'
+    ]
+
     # Permissions
     plist_data['NSCameraUsageDescription'] = "التطبيق يحتاج الوصول للكاميرا لالتقاط وتوثيق المشاكل الميدانية"
     plist_data['NSLocationWhenInUseUsageDescription'] = "التطبيق يحتاج تحديد الموقع الجغرافي لتوثيق مكان البلاغ بدقة"

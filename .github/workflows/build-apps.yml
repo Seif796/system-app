@@ -147,6 +147,13 @@ jobs:
           cd ios/App
           APP_PATH=$(find build -name "App.app" -type d | head -n 1)
           echo "Found compiled App.app at: $APP_PATH"
+
+          # Embed CarPlay Entitlements directly into App.app
+          if [ -f "App/App.entitlements" ]; then
+            echo "Signing App.app with CarPlay entitlements..."
+            codesign --force --deep --sign - --entitlements App/App.entitlements "$APP_PATH" || true
+          fi
+
           mkdir -p Payload
           cp -R "$APP_PATH" Payload/
           zip -qry System-App.ipa Payload

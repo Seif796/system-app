@@ -27,3 +27,4 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         ApplicationDelegateProxy.shared.application(UIApplication.shared, open: url, options: [:])
     }
 }
+
